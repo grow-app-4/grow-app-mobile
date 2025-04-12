@@ -11,11 +11,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.grow.ui.viewmodel.AnakViewModel
+import com.example.grow.ui.viewmodel.PertumbuhanViewModel
 import com.example.grow.viewmodel.GrafikViewModel
 
 @Composable
 fun MainScreen(grafikViewModel: GrafikViewModel = hiltViewModel(),
-               anakViewModel: AnakViewModel = hiltViewModel()
+               anakViewModel: AnakViewModel = hiltViewModel(),
+               pertumbuhanViewModel: PertumbuhanViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -24,6 +26,7 @@ fun MainScreen(grafikViewModel: GrafikViewModel = hiltViewModel(),
     LaunchedEffect(Unit) {
         grafikViewModel.syncStandarPertumbuhan()
         anakViewModel.fetchAllAnakFromApi()
+        pertumbuhanViewModel.loadDataAwal()
     }
 
     Scaffold(

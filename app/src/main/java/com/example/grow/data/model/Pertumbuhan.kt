@@ -29,6 +29,12 @@ data class DetailPertumbuhanResponse(
     @SerializedName("jenis") val jenis: JenisPertumbuhanResponse
 )
 
+data class JenisPertumbuhanListResponse(
+    @SerializedName("status") val status: String,
+    @SerializedName("message") val message: String,
+    @SerializedName("data") val data: List<JenisPertumbuhanResponse>
+)
+
 data class JenisPertumbuhanResponse(
     @SerializedName("id_jenis") val idJenis: Int,
     @SerializedName("nama_jenis") val namaJenis: String

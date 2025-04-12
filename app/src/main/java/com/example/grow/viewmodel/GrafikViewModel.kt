@@ -107,20 +107,6 @@ class GrafikViewModel @Inject constructor(
         return null
     }
 
-    fun hitungUsiaAnak(tanggalLahir: String?): String {
-        if (tanggalLahir == null) return "Usia tidak diketahui"
-
-        return try {
-            val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
-            val lahir = LocalDate.parse(tanggalLahir, formatter)
-            val sekarang = LocalDate.now()
-            val periode = Period.between(lahir, sekarang)
-            "${periode.years} Tahun ${periode.months} Bulan"
-        } catch (e: Exception) {
-            "Usia tidak valid"
-        }
-    }
-
     fun getAnakById(id: Int): Flow<AnakEntity?> {
         return anakRepository.getAnakById(id)
     }

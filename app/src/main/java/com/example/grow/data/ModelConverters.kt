@@ -31,7 +31,6 @@ fun JenisPertumbuhanResponse.toEntity(): JenisPertumbuhanEntity {
     )
 }
 
-// Konversi sebaliknya (Entity ke Model API) jika diperlukan
 fun PertumbuhanEntity.toApiModel(): Pertumbuhan {
     return Pertumbuhan(
         idPertumbuhan = this.idPertumbuhan,
@@ -42,7 +41,6 @@ fun PertumbuhanEntity.toApiModel(): Pertumbuhan {
     )
 }
 
-// Tambahkan di file konversi Anda
 fun PertumbuhanRequest.toEntity(tempId: Int): PertumbuhanEntity {
     return PertumbuhanEntity(
         idPertumbuhan = tempId,

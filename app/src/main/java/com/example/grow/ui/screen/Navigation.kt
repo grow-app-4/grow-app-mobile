@@ -2,16 +2,11 @@ package com.example.grow.ui.screen
 
 import HomeScreen
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.grow.ui.screen.DataEntryScreen
-import com.example.grow.viewmodel.GrafikViewModel
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")

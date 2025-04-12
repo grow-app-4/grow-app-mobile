@@ -1,5 +1,6 @@
 package com.example.grow.data.api
 
+import com.example.grow.data.model.JenisPertumbuhanListResponse
 import com.example.grow.data.model.JenisPertumbuhanResponse
 import com.example.grow.data.model.PertumbuhanResponse
 import com.example.grow.data.model.Pertumbuhan
@@ -35,7 +36,7 @@ interface PertumbuhanApiService {
 
     // Get growth types
     @GET("jenis-pertumbuhan")
-    suspend fun getJenisPertumbuhan(): Response<List<JenisPertumbuhanResponse>>
+    suspend fun getJenisPertumbuhan(): Response<JenisPertumbuhanListResponse>
 
     @GET("standar-pertumbuhan")
     suspend fun getStandarPertumbuhan(): Response<StandarPertumbuhanResponse>

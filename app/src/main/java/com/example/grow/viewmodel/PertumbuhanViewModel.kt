@@ -43,6 +43,20 @@ class PertumbuhanViewModel @Inject constructor(
     private val _selectedChildIndex = MutableStateFlow(0)
     val selectedChildIndex: StateFlow<Int> = _selectedChildIndex
 
+    private val _syncSuccess = MutableLiveData<Boolean>()
+    val syncSuccess: LiveData<Boolean> = _syncSuccess
+
+    fun loadDataAwal() {
+        viewModelScope.launch {
+            try {
+                repository.syncJenisPertumbuhan()
+                _syncSuccess.value = true
+            } catch (e: Exception) {
+                Log.e("PertumbuhanViewModel", "Error fetching jenis data: ${e.message}")
+            }
+        }
+    }
+
     val childAges = MutableStateFlow<Map<Int, String>>(emptyMap())
 
     fun loadChildren(userId: Int) {
@@ -128,7 +142,7 @@ class PertumbuhanViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val anakEntity = AnakEntity(
-                    idAnak = 0, // autoGenerate
+                    idAnak = 0,
                     idUser = userId,
                     namaAnak = nama,
                     tanggalLahir = tanggalLahir,
@@ -165,42 +179,6 @@ class PertumbuhanViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("ERROR", "Gagal create pertumbuhan: ${e.message}")
             }
-        }
-    }
-
-    fun syncAllFromApi() {
-        viewModelScope.launch {
-            repository.syncFromApiToRoom()
-        }
-    }
-
-    fun addPertumbuhan(
-        pertumbuhan: PertumbuhanEntity,
-        details: List<DetailPertumbuhanEntity>,
-        jenisList: List<JenisPertumbuhanEntity>
-    ) {
-        viewModelScope.launch {
-            repository.insertPertumbuhanWithDetails(pertumbuhan, details, jenisList)
-            getPertumbuhanAnak(pertumbuhan.idAnak) // refresh data
-        }
-    }
-
-    // Optional: sinkronisasi dari API
-    fun syncFromApi(response: List<com.example.grow.data.model.Pertumbuhan>) {
-        viewModelScope.launch {
-            repository.syncFromApi(response)
-            // misalnya ambil data anak pertama
-            val anakId = response.firstOrNull()?.idAnak
-            if (anakId != null) getPertumbuhanAnak(anakId)
-        }
-    }
-
-    fun fetchAndSyncFromApi() {
-        viewModelScope.launch {
-            repository.syncFromApiToRoom()
-            // optionally update local cache
-            val idAnak = repository.getAllPertumbuhan().firstOrNull()?.pertumbuhan?.idAnak
-            if (idAnak != null) getPertumbuhanAnak(idAnak)
         }
     }
 

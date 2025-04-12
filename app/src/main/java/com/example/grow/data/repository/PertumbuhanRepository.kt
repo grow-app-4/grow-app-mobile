@@ -7,6 +7,7 @@ import com.example.grow.data.DetailPertumbuhanDao
 import com.example.grow.data.PertumbuhanEntity
 import com.example.grow.data.DetailPertumbuhanEntity
 import com.example.grow.data.GrowthData
+import com.example.grow.data.JenisPertumbuhanDao
 import com.example.grow.data.PertumbuhanDao
 import com.example.grow.data.JenisPertumbuhanEntity
 import com.example.grow.data.PertumbuhanWithDetail
@@ -16,7 +17,9 @@ import com.example.grow.data.api.PertumbuhanApiService
 import com.example.grow.data.model.Pertumbuhan
 import com.example.grow.data.model.PertumbuhanRequest
 import com.example.grow.data.toEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.Period
 import java.time.format.DateTimeFormatter
@@ -30,6 +33,7 @@ class PertumbuhanRepository @Inject constructor(
     private val anakDao: AnakDao,
     private val pertumbuhanDao: PertumbuhanDao,
     private val detailDao: DetailPertumbuhanDao,
+    private val jenisPertumbuhanDao: JenisPertumbuhanDao,
     private val standarDao: StandarPertumbuhanDao,
     private val apiService: PertumbuhanApiService
 ) {
@@ -45,6 +49,23 @@ class PertumbuhanRepository @Inject constructor(
     suspend fun getPertumbuhanByAnak(idAnak: Int): List<PertumbuhanWithDetail> {
         return pertumbuhanDao.getPertumbuhanByAnak(idAnak)
     }
+
+    suspend fun syncJenisPertumbuhan() = withContext(Dispatchers.IO) {
+        val response = apiService.getJenisPertumbuhan()
+        if (response.isSuccessful) {
+            response.body()?.data?.let { jenisList ->
+                val entities = jenisList.map {
+                    JenisPertumbuhanEntity(
+                        idJenis = it.idJenis,
+                        namaJenis = it.namaJenis
+                    )
+                }
+                jenisPertumbuhanDao.insertAllJenis(entities)
+            }
+        }
+    }
+
+    fun getAllJenisFlow() = jenisPertumbuhanDao.getAllJenis()
 
     suspend fun insertPertumbuhanWithDetails(
         pertumbuhan: PertumbuhanEntity,
@@ -71,10 +92,8 @@ class PertumbuhanRepository @Inject constructor(
         localJenis: List<JenisPertumbuhanEntity>
     ) {
         pertumbuhanDao.insertJenisPertumbuhan(localJenis)
-        // Insert PertumbuhanEntity dan ambil id auto-generated
         val idPertumbuhan = pertumbuhanDao.insertPertumbuhan(entity).toInt()
 
-        // Setelah dapat idPertumbuhan, buat list detail dengan id ini
         val detailEntities = request.details.map { detail ->
             DetailPertumbuhanEntity(
                 idPertumbuhan = idPertumbuhan,
@@ -220,14 +239,6 @@ class PertumbuhanRepository @Inject constructor(
 
             insertPertumbuhanWithDetails(pertumbuhanEntity, detailList, jenisList)
         }
-    }
-
-    private fun hitungUsiaDalamBulan(tglLahir: String, tglCatat: String): Int {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        val lahir = LocalDate.parse(tglLahir, formatter)
-        val catat = LocalDate.parse(tglCatat, formatter)
-        val periode = Period.between(lahir, catat)
-        return periode.years * 12 + periode.months
     }
 
     fun getPertumbuhanAnak(idAnak: Int): Flow<List<PertumbuhanWithDetail>> {

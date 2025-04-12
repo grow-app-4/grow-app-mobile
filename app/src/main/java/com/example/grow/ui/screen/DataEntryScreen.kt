@@ -15,8 +15,6 @@ import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -24,30 +22,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.grow.R
 import com.example.grow.ui.viewmodel.PertumbuhanViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.grow.data.DetailPertumbuhanEntity
 import com.example.grow.data.JenisPertumbuhanEntity
 import com.example.grow.data.PertumbuhanEntity
 import com.example.grow.data.model.DetailRequest
 import com.example.grow.data.model.PertumbuhanRequest
-import kotlinx.coroutines.launch
+import com.example.grow.ui.theme.*
 import android.app.DatePickerDialog
 import android.widget.Toast
 import java.util.Calendar
 import androidx.compose.ui.platform.LocalContext
-
-val PoppinsFamily = FontFamily(
-    Font(R.font.poppins_regular, FontWeight.Normal),
-    Font(R.font.poppins_medium, FontWeight.Medium),
-    Font(R.font.poppins_semibold, FontWeight.SemiBold)
-)
-
-val Blue = Color(0xFF1877F2)
-val LightBlue = Color(0xFFE7F0FF)
-val TextPrimary = Color(0xFF333333)
-val TextSecondary = Color(0xFF8B9CB3)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

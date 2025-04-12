@@ -26,7 +26,7 @@ class AnakRepository @Inject constructor(
     // Mengambil data anak dari database lokal (Room)
     fun getAllAnak(): Flow<List<AnakEntity>> = anakDao.getAllAnak()
 
-    // Mengambil data dari API, lalu menyimpannya ke database lokal
+    // Mengambil data dari API,
     suspend fun fetchAllAnakFromApi() {
         val response = anakApiService.getAllAnak()
         if (response.isSuccessful && response.body() != null) {
@@ -37,11 +37,11 @@ class AnakRepository @Inject constructor(
                         idUser = anak.idUser,
                         namaAnak = anak.namaAnak,
                         jenisKelamin = anak.jenisKelamin,
-                        tanggalLahir = anak.tanggalLahir.toString() // Ensure this conversion is correct
+                        tanggalLahir = anak.tanggalLahir.toString()
                     )
                 }
                 anakDao.insertAllAnak(entities)
-                val anakDataFromRoom = anakDao.getAllAnak().firstOrNull() // Mengambil data dari Flow
+                val anakDataFromRoom = anakDao.getAllAnak().firstOrNull()
                 Log.d("AnakRepository", "Data anak dari Room setelah disimpan: $anakDataFromRoom")
             }
         }
@@ -139,7 +139,7 @@ class AnakRepository @Inject constructor(
         )
     }
 
-    // Menghapus anak dari database dan API
+
     suspend fun deleteAnak(anak: AnakEntity) {
         anakDao.deleteAnak(anak)
         anakApiService.deleteAnak(anak.idAnak)
