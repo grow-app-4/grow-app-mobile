@@ -1,5 +1,6 @@
 package com.example.grow.data.remote
 
+import com.example.grow.data.model.Anak
 import com.example.grow.data.model.AnakResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -14,7 +15,7 @@ interface AnakApiService {
     suspend fun getAllAnak(): Response<AnakResponse>
 
     @GET("anak/{id}")
-    suspend fun getAnakById(@Path("id") id: Int): Response<AnakResponse>
+    suspend fun getAnakById(@Path("id") id: Int): Response<Anak>
 
     @POST("anak")
     suspend fun createAnak(@Body anak: HashMap<String, Any>): Response<AnakResponse>

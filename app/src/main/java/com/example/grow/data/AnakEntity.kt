@@ -3,14 +3,11 @@ package com.example.grow.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "data_table")
+@Entity(tableName = "anak")
 data class AnakEntity(
-    @PrimaryKey val malId: Int,
-    val jumlahJaringan: Int,
-    val kodeKabupatenKota: Int,
-    val kodeProvinsi: Int,
-    val namaKabupatenKota: String,
-    val namaProvinsi: String,
-    val satuan: String,
-    val tahun: Int
+    @PrimaryKey val idAnak: Int,
+    val idUser: Int,
+    val namaAnak: String,
+    val jenisKelamin: String,
+    val tanggalLahir: String
 )
