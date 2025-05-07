@@ -51,18 +51,46 @@ class PertumbuhanRepository @Inject constructor(
     }
 
     suspend fun syncJenisPertumbuhan() = withContext(Dispatchers.IO) {
-        val response = apiService.getJenisPertumbuhan()
-        if (response.isSuccessful) {
-            response.body()?.data?.let { jenisList ->
-                val entities = jenisList.map {
-                    JenisPertumbuhanEntity(
-                        idJenis = it.idJenis,
-                        namaJenis = it.namaJenis
-                    )
+        val localData = jenisPertumbuhanDao.getAllJenisPertumbuhan()
+
+        if (localData.isEmpty()) {
+            try {
+                val response = apiService.getJenisPertumbuhan()
+
+                if (response.isSuccessful) {
+                    response.body()?.data?.let { jenisList ->
+                        val entities = jenisList.map {
+                            JenisPertumbuhanEntity(
+                                idJenis = it.idJenis,
+                                namaJenis = it.namaJenis
+                            )
+                        }
+                        jenisPertumbuhanDao.insertAllJenis(entities)
+                        Log.d("SYNC_JENIS", "Data dari API berhasil disimpan (${entities.size} item)")
+                    }
+                } else {
+                    Log.w("SYNC_JENIS", "Response API tidak sukses: ${response.message()}")
+                    insertDefaultJenisIfNeeded()
                 }
-                jenisPertumbuhanDao.insertAllJenis(entities)
+            } catch (e: Exception) {
+                Log.e("SYNC_JENIS", "Gagal ambil data dari API: ${e.message}")
+                insertDefaultJenisIfNeeded()
             }
+        } else {
+            Log.d("SYNC_JENIS", "Data jenis pertumbuhan sudah tersedia di lokal.")
         }
+    }
+
+    // Fungsi fallback buat data hardcoded
+    private suspend fun insertDefaultJenisIfNeeded() {
+        val hardcodedJenis = listOf(
+            JenisPertumbuhanEntity(idJenis = 1, namaJenis = "Tinggi Badan"),
+            JenisPertumbuhanEntity(idJenis = 2, namaJenis = "Berat Badan"),
+            JenisPertumbuhanEntity(idJenis = 3, namaJenis = "Lingkar Kepala")
+        )
+
+        jenisPertumbuhanDao.insertAllJenis(hardcodedJenis)
+        Log.w("SYNC_JENIS", "🟡 Data lokal kosong, menggunakan data default sebanyak ${hardcodedJenis.size}")
     }
 
     fun getAllJenisFlow() = jenisPertumbuhanDao.getAllJenis()
@@ -72,8 +100,6 @@ class PertumbuhanRepository @Inject constructor(
         details: List<DetailPertumbuhanEntity>,
         jenisList: List<JenisPertumbuhanEntity>
     ) {
-        pertumbuhanDao.insertJenisPertumbuhan(jenisList)
-
         val pertumbuhanId = pertumbuhanDao.insertPertumbuhan(pertumbuhan).toInt()
         Log.d("DEBUG_PERTUMBUHAN", "Inserted pertumbuhan ID: $pertumbuhanId")
 
@@ -91,10 +117,16 @@ class PertumbuhanRepository @Inject constructor(
         request: PertumbuhanRequest,
         localJenis: List<JenisPertumbuhanEntity>
     ) {
-        pertumbuhanDao.insertJenisPertumbuhan(localJenis)
-        val idPertumbuhan = pertumbuhanDao.insertPertumbuhan(entity).toInt()
+        Log.d("LOCAL_INSERT", "Memulai penyimpanan data pertumbuhan ke lokal...")
 
+        // 2. Simpan entitas pertumbuhan dan ambil ID yang di-generate
+        Log.d("LOCAL_INSERT", "Menyimpan entitas pertumbuhan: $entity")
+        val idPertumbuhan = pertumbuhanDao.insertPertumbuhan(entity).toInt()
+        Log.d("LOCAL_INSERT", "ID pertumbuhan yang di-generate: $idPertumbuhan")
+
+        // 3. Mapping data detail pertumbuhan ke entity
         val detailEntities = request.details.map { detail ->
+            Log.d("LOCAL_INSERT", "Mapping detail: idJenis=${detail.idJenis}, nilai=${detail.nilai}")
             DetailPertumbuhanEntity(
                 idPertumbuhan = idPertumbuhan,
                 idJenis = detail.idJenis,
@@ -102,8 +134,15 @@ class PertumbuhanRepository @Inject constructor(
             )
         }
 
+        // 4. Simpan detail pertumbuhan
+        Log.d("LOCAL_INSERT", "Menyimpan ${detailEntities.size} detail pertumbuhan")
         pertumbuhanDao.insertDetailPertumbuhan(detailEntities)
+
+        // 5. Proses analisis stunting
+        Log.d("LOCAL_INSERT", "Memulai proses analisis stunting untuk ID: $idPertumbuhan")
         prosesAnalisisStunting(idPertumbuhan)
+
+        // 6. Sukses
         Log.d("LOCAL_INSERT", "Data pertumbuhan dan detail berhasil disimpan lokal")
     }
 
@@ -121,12 +160,20 @@ class PertumbuhanRepository @Inject constructor(
     suspend fun createPertumbuhanToApi(request: PertumbuhanRequest): Boolean {
         return try {
             val response = apiService.createPertumbuhan(request)
-            response.isSuccessful
+
+            if (response.isSuccessful) {
+                Log.d("API_POST", "Sukses kirim ke API. Response code: ${response.code()}")
+                true
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e("API_POST", "Gagal kirim ke API. Code: ${response.code()}, Error: $errorBody")
+                false
+            }
         } catch (e: CancellationException) {
             Log.e("API_POST", "Coroutine dibatalkan di Repository", e)
             throw e
         } catch (e: Exception) {
-            Log.e("API_POST", "Gagal kirim API", e)
+            Log.e("API_POST", "Exception saat kirim ke API", e)
             false
         }
     }

@@ -1,12 +1,13 @@
 package com.example.grow.ui.screen
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,27 +19,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBox
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.FoodBank
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.rounded.AccountBox
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material.icons.rounded.FoodBank
+import androidx.compose.material.icons.rounded.ListAlt
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -57,7 +62,7 @@ data class BottomNavItem(
 fun BottomNavigationWithFab(
     navController: NavController,
     currentRoute: String?,
-    idAnak: Int
+    idAnak: Int?
 ) {
     val bottomItems = listOf(
         BottomNavItem(
@@ -68,14 +73,14 @@ fun BottomNavigationWithFab(
         ),
         BottomNavItem(
             screen = Screen.Nutrisi,
-            outlinedIcon = Icons.Outlined.AccountBox,
-            filledIcon = Icons.Rounded.AccountBox,
+            outlinedIcon = Icons.Outlined.ListAlt,
+            filledIcon = Icons.Rounded.ListAlt,
             label = "Nutrisi"
         ),
         BottomNavItem(
             screen = Screen.Resep,
-            outlinedIcon = Icons.Outlined.Notifications,
-            filledIcon = Icons.Rounded.Notifications,
+            outlinedIcon = Icons.Outlined.FoodBank,
+            filledIcon = Icons.Rounded.FoodBank,
             label = "Resep"
         ),
         BottomNavItem(
@@ -86,122 +91,60 @@ fun BottomNavigationWithFab(
         )
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = BackgroundColor,
+        shadowElevation = 8.dp,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     ) {
-        BottomAppBar(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .shadow(elevation = 12.dp, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
+        NavigationBar(
+            modifier = Modifier.fillMaxWidth(),
             containerColor = BackgroundColor,
-            tonalElevation = 0.dp,
+            contentColor = BiruPrimer,
+            tonalElevation = 0.dp
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                bottomItems.forEach { item ->
-                    val isSelected = currentRoute == item.screen.route
-                    val iconColor by animateColorAsState(
-                        targetValue = if (isSelected) BiruPrimer else TextColor.copy(alpha = 0.6f),
-                        animationSpec = tween(300), label = "iconColor"
-                    )
-                    val iconSize by animateDpAsState(
-                        targetValue = if (isSelected) 26.dp else 24.dp,
-                        animationSpec = tween(300), label = "iconSize"
-                    )
+            bottomItems.forEach { item ->
+                val isSelected = currentRoute == item.screen.route
+                val interactionSource = remember { MutableInteractionSource() }
 
-                    BottomNavItem(
-                        icon = if (isSelected) item.filledIcon else item.outlinedIcon,
-                        label = item.label,
-                        selected = isSelected,
-                        iconColor = iconColor,
-                        iconSize = iconSize,
-                        onClick = {
-                            navController.navigate(item.screen.route) {
-                                popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                NavigationBarItem(
+                    selected = isSelected,
+                    onClick = {
+                        navController.navigate(item.screen.route) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    icon = {
+                        val iconSize by animateDpAsState(
+                            targetValue = if (isSelected) 28.dp else 24.dp,
+                            animationSpec = tween(300, easing = FastOutSlowInEasing),
+                            label = "iconSize"
+                        )
+
+                        Icon(
+                            imageVector = if (isSelected) item.filledIcon else item.outlinedIcon,
+                            contentDescription = item.label,
+                            modifier = Modifier.size(iconSize)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = item.label,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = BiruPrimer,
+                        selectedTextColor = BiruPrimer,
+                        unselectedIconColor = TextColor.copy(alpha = 0.6f),
+                        unselectedTextColor = TextColor.copy(alpha = 0.6f),
+                        indicatorColor = BiruPrimer.copy(alpha = 0.1f)
+                    ),
+                    interactionSource = interactionSource
+                )
             }
         }
-
-        // FAB with improved design
-        FloatingActionButton(
-            onClick = {
-                navController.navigate(Screen.InputDataPertumbuhan.createRoute(idAnak)) {
-                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                    launchSingleTop = true
-                }
-            },
-            containerColor = BiruPrimer,
-            contentColor = BackgroundColor,
-            shape = CircleShape,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-22).dp)
-                .size(56.dp)
-                .shadow(elevation = 8.dp, shape = CircleShape)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Add,
-                contentDescription = "Add",
-                modifier = Modifier.size(28.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun BottomNavItem(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    iconColor: androidx.compose.ui.graphics.Color,
-    iconSize: androidx.compose.ui.unit.Dp,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = modifier
-            .padding(4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .then(
-                if (selected) {
-                    Modifier.background(
-                        BiruPrimer.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                } else Modifier
-            )
-            .padding(vertical = 8.dp)
-    ) {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(iconSize + 16.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = iconColor,
-                modifier = Modifier.size(iconSize)
-            )
-        }
-
-        Text(
-            text = label,
-            color = iconColor,
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 2.dp)
-        )
     }
 }

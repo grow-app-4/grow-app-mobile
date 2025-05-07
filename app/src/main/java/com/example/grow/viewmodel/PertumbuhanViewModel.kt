@@ -21,6 +21,7 @@ import java.time.LocalDate
 import java.time.Period
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 @HiltViewModel
 class PertumbuhanViewModel @Inject constructor(
@@ -43,14 +44,24 @@ class PertumbuhanViewModel @Inject constructor(
     private val _selectedChildIndex = MutableStateFlow(0)
     val selectedChildIndex: StateFlow<Int> = _selectedChildIndex
 
+    val selectedChild: StateFlow<AnakEntity?> = combine(children, selectedChildIndex) { anakList, index ->
+        anakList.getOrNull(index)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     private val _syncSuccess = MutableLiveData<Boolean>()
     val syncSuccess: LiveData<Boolean> = _syncSuccess
+
+    private val _saveSuccess = MutableStateFlow(false)
+    val saveSuccess: StateFlow<Boolean> = _saveSuccess
 
     fun loadDataAwal() {
         viewModelScope.launch {
             try {
                 repository.syncJenisPertumbuhan()
                 _syncSuccess.value = true
+                Log.d("PertumbuhanViewModel", "Sync jenis pertumbuhan selesai")
+            } catch (e: CancellationException) {
+                Log.d("PertumbuhanViewModel", "Sync dibatalkan: ${e.message}")
             } catch (e: Exception) {
                 Log.e("PertumbuhanViewModel", "Error fetching jenis data: ${e.message}")
             }
@@ -169,17 +180,40 @@ class PertumbuhanViewModel @Inject constructor(
         localJenis: List<JenisPertumbuhanEntity>
     ) {
         viewModelScope.launch {
+            Log.d("CREATE_PERTUMBUHAN", "Mulai create pertumbuhan")
             try {
+                Log.d("CREATE_PERTUMBUHAN", "Mengirim data ke API: $request")
                 val isSuccess = repository.createPertumbuhanToApi(request)
 
                 if (isSuccess) {
-                    Log.d("API_POST", "Upload sukses, insert ke lokal")
-                    repository.createPertumbuhanToLocal(localEntity, request, localJenis)
+                    Log.d("CREATE_PERTUMBUHAN", "Upload ke API sukses, lanjut insert ke lokal")
+                } else {
+                    Log.w("CREATE_PERTUMBUHAN", "Upload ke API gagal (isSuccess = false), insert ke lokal tetap dilakukan")
                 }
+
+                // Simpan ke lokal di kedua kondisi (API sukses atau gagal)
+                repository.createPertumbuhanToLocal(localEntity, request, localJenis)
+                Log.d("CREATE_PERTUMBUHAN", "Insert ke lokal selesai")
+
+                _saveSuccess.value = true // Notifikasi ke UI kalau sudah selesai
+
             } catch (e: Exception) {
-                Log.e("ERROR", "Gagal create pertumbuhan: ${e.message}")
+                Log.e("CREATE_PERTUMBUHAN", "Exception saat create pertumbuhan: ${e.message}", e)
+
+                // Kalau error di API, tetap simpan ke lokal
+                try {
+                    Log.d("CREATE_PERTUMBUHAN", "Insert ke lokal karena error saat API call")
+                    repository.createPertumbuhanToLocal(localEntity, request, localJenis)
+                    _saveSuccess.value = true
+                } catch (localErr: Exception) {
+                    Log.e("CREATE_PERTUMBUHAN", "Gagal insert ke lokal: ${localErr.message}", localErr)
+                }
             }
         }
+    }
+
+    fun resetSaveSuccess() {
+        _saveSuccess.value = false
     }
 
     fun updatePertumbuhan(

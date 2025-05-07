@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PertumbuhanDao {
-    // Ambil semua pertumbuhan beserta detail & jenisnya
     @Transaction
     @Query("SELECT * FROM pertumbuhan")
     suspend fun getAllPertumbuhan(): List<PertumbuhanWithDetail>

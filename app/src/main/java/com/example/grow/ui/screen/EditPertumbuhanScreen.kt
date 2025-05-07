@@ -50,8 +50,8 @@ fun EditPertumbuhanScreen(
         viewModel.getPertumbuhanById(idPertumbuhan)?.let { data ->
             tanggal = data.pertumbuhan.tanggalPencatatan
             isStunting = data.pertumbuhan.statusStunting
-            berat = data.details.find { it.jenis.idJenis == 1 }?.detail?.nilai?.toString() ?: ""
-            tinggi = data.details.find { it.jenis.idJenis == 2 }?.detail?.nilai?.toString() ?: ""
+            berat = data.details.find { it.jenis.idJenis == 2 }?.detail?.nilai?.toString() ?: ""
+            tinggi = data.details.find { it.jenis.idJenis == 1 }?.detail?.nilai?.toString() ?: ""
             lingkar = data.details.find { it.jenis.idJenis == 3 }?.detail?.nilai?.toString() ?: ""
         }
     }

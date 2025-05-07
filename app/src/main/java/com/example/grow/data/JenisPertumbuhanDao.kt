@@ -22,4 +22,8 @@ interface JenisPertumbuhanDao {
 
     @Query("DELETE FROM jenis_pertumbuhan")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM jenis_pertumbuhan")
+    suspend fun getAllJenisPertumbuhan(): List<JenisPertumbuhanEntity>
+
 }

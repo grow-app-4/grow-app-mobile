@@ -46,6 +46,7 @@ fun DataEntryScreen(
     var lingkar by remember { mutableStateOf("") }
     var isStunting by remember { mutableStateOf("tidak") }
     val context = LocalContext.current
+    val saveSuccess by viewModel.saveSuccess.collectAsState()
 
     Scaffold(
         topBar = {
@@ -163,8 +164,8 @@ fun DataEntryScreen(
                         tanggalPencatatan = tanggal,
                         statusStunting = isStunting,
                         details = listOf(
-                            DetailRequest(1, berat.toFloatOrNull() ?: 0f),
-                            DetailRequest(2, tinggi.toFloatOrNull() ?: 0f),
+                            DetailRequest(2, berat.toFloatOrNull() ?: 0f),
+                            DetailRequest(1, tinggi.toFloatOrNull() ?: 0f),
                             DetailRequest(3, lingkar.toFloatOrNull() ?: 0f)
                         )
                     )
@@ -180,7 +181,6 @@ fun DataEntryScreen(
                     viewModel.createPertumbuhan(request, entity, jenisList)
 
                     Toast.makeText(context, "Data berhasil ditambahkan!", Toast.LENGTH_SHORT).show()
-                    navController.navigate("home")
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -199,6 +199,13 @@ fun DataEntryScreen(
                         fontSize = 16.sp
                     )
                 )
+            }
+        }
+        LaunchedEffect(saveSuccess) {
+            if (saveSuccess) {
+                Toast.makeText(context, "Data berhasil disimpan!", Toast.LENGTH_SHORT).show()
+                navController.popBackStack()
+                viewModel.resetSaveSuccess()
             }
         }
     }

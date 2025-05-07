@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.grow.data.AnakEntity
+import com.example.grow.ui.screen.ButtonTambahPertumbuhan
 import com.example.grow.ui.screen.GrafikPertumbuhanScreen
 import com.example.grow.ui.screen.Screen
 import com.example.grow.ui.viewmodel.PertumbuhanViewModel
@@ -42,8 +43,8 @@ import kotlinx.coroutines.flow.firstOrNull
 fun HomeScreen(
     navController: NavController,
     viewModel: PertumbuhanViewModel = hiltViewModel(),
-    userId: Int)
-{
+    userId: Int
+) {
     val children by viewModel.children.collectAsState()
     val selectedChildIndex by viewModel.selectedChildIndex.collectAsState()
     val selectedChild = children.getOrNull(selectedChildIndex)
@@ -62,49 +63,74 @@ fun HomeScreen(
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Background putih
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-        )
+    val scrollState = rememberScrollState()
 
-        // Background biru
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(600.dp)
-                .background(BiruMudaMain,
-                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            // Optional: Add top bar if needed
+        },
+        content = { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues) // For handling the insets of Scaffold
+            ) {
+                // Content area with scrolling
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                ) {
+                    // Child profile header with white background
+                    ChildProfileHeader(
+                        navController = navController,
+                        viewModel = viewModel,
+                        children = children,
+                        selectedChild = selectedChild,
+                        onChildChanged = { selectedIndex ->
+                            viewModel.selectChild(selectedIndex)
+                        },
+                        userId
+                    )
+
+                    // Blue background container for the cards
+                    selectedChild?.idAnak?.let { idAnak ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    BiruMudaMain,
+                                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                                )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 20.dp)
+                            ) {
+                                GrowthDataCard(viewModel = viewModel, idAnak = idAnak)
+                                GrowthChartCard(navController = navController, viewModel = viewModel, anak = selectedChild)
+                                AnalysisResultCard(statusStunting = statusStunting)
+
+                                // Add spacing at the bottom
+                                Spacer(modifier = Modifier.height(80.dp))
+                            }
+                        }
+                    }
+                }
+
+                // Floating Button di posisi bawah layar
+                ButtonTambahPertumbuhan(
+                    selectedChildId = selectedChild?.idAnak,
+                    onClick = { idAnak ->
+                        navController.navigate(Screen.InputDataPertumbuhan.createRoute(idAnak))
+                    },
+                    scrollState = scrollState
                 )
-                .align(Alignment.BottomCenter)
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-            ChildProfileHeader(
-                navController = navController,
-                viewModel = viewModel,
-                children = children,
-                selectedChild = selectedChild,
-                onChildChanged = { selectedIndex ->
-                    viewModel.selectChild(selectedIndex)
-                },
-                userId
-            )
-
-            selectedChild?.idAnak?.let {
-                GrowthDataCard(viewModel = viewModel, idAnak = it)
-                GrowthChartCard(navController = navController, viewModel = viewModel, anak = selectedChild)
-                AnalysisResultCard(statusStunting = statusStunting)
             }
         }
-    }
+    )
 }
 
 @Composable
@@ -464,6 +490,13 @@ fun GrowthChart(
     idJenis: Int,
     viewModel: GrafikViewModel = hiltViewModel()
 ) {
+    val grafikWHO by viewModel.grafikWHO.collectAsState()
+    val grafikAnak by viewModel.grafikAnak.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.loadGrafik(anak, idJenis)
+    }
+
     Column {
         Row(
             modifier = Modifier
@@ -499,11 +532,32 @@ fun GrowthChart(
                 .border(1.dp, BiruPrimer)
                 .padding(8.dp)
         ) {
-            GrafikPertumbuhanScreen(
-                anak = anak,
-                idJenis = idJenis,
-                viewModel = viewModel
-            )
+            when {
+                grafikWHO.isEmpty() -> {
+                    Text(
+                        text = "Data standar WHO belum tersedia.\nSilakan lakukan sinkronisasi terlebih dahulu.",
+                        style = Typography.bodySmall,
+                        color = Color.Red,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                grafikAnak.isEmpty() -> {
+                    // ✅ WHO ada, tapi data anak belum ada
+                    Text(
+                        text = "Belum ada data pertumbuhan anak.",
+                        style = Typography.bodySmall,
+                        color = TextColor.copy(alpha = 0.6f),
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                else -> {
+                    // ✅ Siap tampilkan grafik
+                    GrafikPertumbuhanScreen(
+                        anak = anak,
+                        idJenis = idJenis,
+                        viewModel = viewModel
+                    )
+                }
             }
         }
 
@@ -525,6 +579,7 @@ fun GrowthChart(
                 modifier = Modifier.padding(start = 4.dp)
             )
         }
+    }
 }
 
 @Composable
@@ -544,12 +599,12 @@ fun GrowthHistoryTable(
 
     // Transform jadi GrowthHistoryItem
     LaunchedEffect(pertumbuhanList) {
-        val anak = grafikViewModel.getAnakById(idAnak).firstOrNull() // ambil tanggal lahir
+        val anak = grafikViewModel.getAnakById(idAnak).firstOrNull()
         anak?.let {
             growthHistory = pertumbuhanList.map { p ->
                 val usia = grafikViewModel.hitungUsiaDalamBulan(it.tanggalLahir, p.pertumbuhan.tanggalPencatatan)?.toString() ?: "-"
-                val berat = p.details.find { it.jenis.idJenis == 1 }?.detail?.nilai
-                val tinggi = p.details.find { it.jenis.idJenis == 2 }?.detail?.nilai
+                val berat = p.details.find { it.jenis.idJenis == 2 }?.detail?.nilai
+                val tinggi = p.details.find { it.jenis.idJenis == 1 }?.detail?.nilai
                 val lingkar = p.details.find { it.jenis.idJenis == 3 }?.detail?.nilai
 
                 GrowthHistoryItem(

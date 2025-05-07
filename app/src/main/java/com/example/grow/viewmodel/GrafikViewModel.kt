@@ -14,6 +14,7 @@ import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 @HiltViewModel
 class GrafikViewModel @Inject constructor(
@@ -55,27 +56,37 @@ class GrafikViewModel @Inject constructor(
                         Log.d("GrafikDebug", ">> Grafik anak hasil: $hasil")
                         _grafikAnak.value = hasil
                     }
+            } catch (e: CancellationException) {
+                Log.d("GrafikDebug", "Load grafik anak dibatalkan: ${e.message}")
             } catch (e: Exception) {
-                Log.e("GrafikDebug", "Error saat load data pertumbuhan anak: ${e.message}", e)
+                Log.e("GrafikDebug", "Error saat load data pertumbuhan anak: ${e.message}")
             }
         }
 
-        // Jalankan pengambilan WHO (suspend)
+        // Jalankan pengambilan WHO
         viewModelScope.launch {
             try {
                 val standarWHO = repository.getStandarWHO(idJenis, anak.jenisKelamin)
                 Log.d("GrafikDebug", "WHO count = ${standarWHO.size}, isi: $standarWHO")
 
-                val grouped = standarWHO.groupBy { it.z_score }
-                    .mapValues { entry ->
-                        entry.value.sortedBy { it.usia }
-                            .map { it.usia to it.nilai }
-                    }
+                if (standarWHO.isNotEmpty()) {
+                    val grouped = standarWHO.groupBy { it.z_score }
+                        .mapValues { entry ->
+                            entry.value.sortedBy { it.usia }
+                                .map { it.usia to it.nilai }
+                        }
 
-                Log.d("GrafikDebug", "Grouped WHO: $grouped")
-                _grafikWHO.value = grouped
+                    Log.d("GrafikDebug", "Grouped WHO: $grouped")
+                    _grafikWHO.value = grouped
+                } else {
+                    Log.w("GrafikDebug", "Data WHO kosong! Mungkin karena belum sync atau belum tersedia di lokal.")
+                    _grafikWHO.value = emptyMap()
+                }
+            } catch (e: CancellationException) {
+                Log.d("GrafikDebug", "Load WHO dibatalkan: ${e.message}")
             } catch (e: Exception) {
-                Log.e("GrafikDebug", "Error saat load WHO: ${e.message}", e)
+                Log.e("GrafikDebug", "Error saat load WHO: ${e.message}")
+                _grafikWHO.value = emptyMap()
             }
         }
     }

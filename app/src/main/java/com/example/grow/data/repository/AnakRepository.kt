@@ -2,13 +2,13 @@ package com.example.grow.data.repository
 
 import android.util.Log
 import com.example.grow.data.AnakDao
-import com.example.grow.data.model.Anak
 import com.example.grow.data.remote.AnakApiService
 import com.example.grow.data.AnakEntity
 import com.example.grow.data.DetailPertumbuhanDao
 import com.example.grow.data.DetailPertumbuhanEntity
 import com.example.grow.data.PertumbuhanDao
 import com.example.grow.data.PertumbuhanEntity
+import com.example.grow.data.model.AnakRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.*
 import java.text.SimpleDateFormat
@@ -64,47 +64,84 @@ class AnakRepository @Inject constructor(
     ) {
         val TAG = "AddAnakLog"
 
-        Log.d(TAG, "Mulai menambahkan anak: ${anak.namaAnak}")
+        try {
+            // 1. Siapkan request ke API
+            val anakRequest = AnakRequest(
+                idUser = anak.idUser,
+                namaAnak = anak.namaAnak,
+                jenisKelamin = anak.jenisKelamin,
+                tanggalLahir = anak.tanggalLahir
+            )
 
-        // Insert anak, dan ambil id hasil insert
-        val anakId = anakDao.insertAnak(anak).toInt()
-        Log.d(TAG, "Anak berhasil ditambahkan dengan ID: $anakId")
+            val response = anakApiService.createAnak(anakRequest)
 
-        // Insert ke tabel pertumbuhan
+            if (response.isSuccessful) {
+                val anakResponse = response.body()?.data
+                val idAnakFromApi = anakResponse?.idAnak
+
+                Log.d(TAG, "Anak berhasil dibuat di API. ID dari server: $idAnakFromApi")
+
+                if (idAnakFromApi != null) {
+                    val anakWithApiId = anak.copy(idAnak = idAnakFromApi)
+                    anakDao.insertAnak(anakWithApiId)
+
+                    insertInitialGrowth(idAnakFromApi, anak.tanggalLahir, beratLahir, tinggiLahir, lingkarKepalaLahir)
+
+                } else {
+                    Log.e(TAG, "Gagal mendapatkan ID anak dari response. Simpan ke lokal saja.")
+                    saveAnakLocally(anak, beratLahir, tinggiLahir, lingkarKepalaLahir)
+                }
+
+            } else {
+                val error = response.errorBody()?.string()
+                Log.e(TAG, "Gagal membuat anak di API: $error. Simpan ke lokal saja.")
+                saveAnakLocally(anak, beratLahir, tinggiLahir, lingkarKepalaLahir)
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Terjadi error saat menambahkan anak: ${e.message}. Simpan ke lokal saja.")
+            saveAnakLocally(anak, beratLahir, tinggiLahir, lingkarKepalaLahir)
+        }
+    }
+
+    private suspend fun saveAnakLocally(
+        anak: AnakEntity,
+        beratLahir: Float,
+        tinggiLahir: Float,
+        lingkarKepalaLahir: Float
+    ) {
+        val idAnakLocal = anakDao.insertAnak(anak).toInt()
+        insertInitialGrowth(idAnakLocal, anak.tanggalLahir, beratLahir, tinggiLahir, lingkarKepalaLahir)
+        Log.d("AddAnakLog", "Anak disimpan ke lokal dengan ID: $idAnakLocal (offline mode)")
+    }
+
+    private suspend fun insertInitialGrowth(
+        idAnak: Int,
+        tanggalLahir: String,
+        berat: Float,
+        tinggi: Float,
+        lingkarKepala: Float
+    ) {
         val pertumbuhanEntity = PertumbuhanEntity(
             idPertumbuhan = 0,
-            idAnak = anakId,
-            tanggalPencatatan = getCurrentDate(),
+            idAnak = idAnak,
+            tanggalPencatatan = tanggalLahir,
             statusStunting = ""
         )
 
         val pertumbuhanId = pertumbuhanDao.insertPertumbuhan(pertumbuhanEntity).toInt()
-        Log.d(TAG, "Pertumbuhan awal berhasil ditambahkan dengan ID: $pertumbuhanId")
 
         val detailList = listOf(
-            DetailPertumbuhanEntity(
-                idPertumbuhan = pertumbuhanId,
-                idJenis = 2,
-                nilai = beratLahir
-            ),
-            DetailPertumbuhanEntity(
-                idPertumbuhan = pertumbuhanId,
-                idJenis = 1,
-                nilai = tinggiLahir
-            ),
-            DetailPertumbuhanEntity(
-                idPertumbuhan = pertumbuhanId,
-                idJenis = 3,
-                nilai = lingkarKepalaLahir
-            )
+            DetailPertumbuhanEntity(pertumbuhanId, 2, berat),
+            DetailPertumbuhanEntity(pertumbuhanId, 1, tinggi),
+            DetailPertumbuhanEntity(pertumbuhanId, 3, lingkarKepala)
         )
 
         detailList.forEach {
-            Log.d(TAG, "Menambahkan detail: idJenis=${it.idJenis}, nilai=${it.nilai}")
             detailPertumbuhanDao.insertDetail(it)
         }
 
-        Log.d(TAG, "Semua data pertumbuhan awal berhasil ditambahkan untuk anak ID: $anakId")
+        Log.d("AddAnakLog", "Pertumbuhan awal disimpan untuk anak ID: $idAnak")
     }
 
     // Mengambil detail anak dari database lokal
