@@ -13,6 +13,7 @@ sealed class Screen(val route: String) {
     object Nutrisi : Screen("nutrisi")
     object Resep : Screen("resep")
     object Profile : Screen("profile")
+    object BookmarkResep : Screen("bookmark_resep")
     object InputDataPertumbuhan : Screen("pertumbuhan/{idAnak}") {
         fun createRoute(idAnak: Int) = "pertumbuhan/$idAnak"
     }
@@ -22,12 +23,38 @@ sealed class Screen(val route: String) {
     object TambahAnak : Screen("tambah_anak/{userId}") {
         fun createRoute(userId: Int) = "tambah_anak/$userId"
     }
+    object ResepDetail : Screen("resep_detail/{resepId}") {
+        fun createRoute(resepId: String) = "resep_detail/$resepId"
+    }
 }
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
     NavHost(navController, startDestination = Screen.Home.route) {
-        composable(Screen.Home.route) { HomeScreen(navController = navController, userId = 4) }
+        composable(Screen.Home.route) {
+            HomeScreen(navController = navController, userId = 4)
+        }
+
+        composable(Screen.Resep.route) {
+            ResepScreen(navController = navController)
+        }
+
+        composable(Screen.BookmarkResep.route) { // Tambahkan route untuk Bookmark
+            BookmarkResepScreen(navController = navController)
+        }
+
+        // Tambahkan resep detail route
+        composable(
+            route = Screen.ResepDetail.route,
+            arguments = listOf(navArgument("resepId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val resepId = backStackEntry.arguments?.getString("resepId") ?: ""
+            ResepDetailScreen(
+                resepId = resepId,
+                navController = navController
+            )
+        }
+
         composable(
             Screen.InputDataPertumbuhan.route,
             arguments = listOf(navArgument("idAnak") { type = NavType.IntType })
@@ -35,6 +62,7 @@ fun AppNavHost(navController: NavHostController) {
             val idAnak = backStackEntry.arguments?.getInt("idAnak") ?: 0
             DataEntryScreen(navController = navController, idAnak = idAnak)
         }
+
         composable(
             route = Screen.EditDataPertumbuhan.route,
             arguments = listOf(
@@ -50,6 +78,7 @@ fun AppNavHost(navController: NavHostController) {
                 idPertumbuhan = idPertumbuhan
             )
         }
+
         composable(
             route = Screen.TambahAnak.route,
             arguments = listOf(navArgument("userId") { type = NavType.IntType })

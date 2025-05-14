@@ -2,6 +2,7 @@ package com.example.grow.di
 
 import com.example.grow.data.api.PertumbuhanApiService
 import com.example.grow.data.remote.AnakApiService
+import com.example.grow.data.remote.ResepApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,7 +37,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:8000/api/")
+            .baseUrl("https://57f9-103-139-10-143.ngrok-free.app/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -54,4 +55,9 @@ object NetworkModule {
         return retrofit.create(PertumbuhanApiService::class.java)
     }
 
+    @Provides
+    @Singleton
+    fun provideResepApiService(retrofit: Retrofit): ResepApiService {
+        return retrofit.create(ResepApiService::class.java)
+    }
 }

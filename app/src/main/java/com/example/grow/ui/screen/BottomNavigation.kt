@@ -79,7 +79,7 @@ fun BottomNavigationWithFab(
             label = "Resep"
         ),
         BottomNavItem(
-            screen = Screen.Profile,
+            screen = Screen.BookmarkResep,
             outlinedIcon = Icons.Outlined.Person,
             filledIcon = Icons.Rounded.Person,
             label = "Profile"
@@ -103,7 +103,14 @@ fun BottomNavigationWithFab(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 bottomItems.forEach { item ->
-                    val isSelected = currentRoute == item.screen.route
+                    // Check if the current route matches the base route
+                    // This handles nested routes like resep_detail/1 still highlighting the Resep tab
+                    val isSelected = when {
+                        currentRoute == item.screen.route -> true
+                        item.screen == Screen.Resep && currentRoute?.startsWith("resep_detail") == true -> true
+                        else -> false
+                    }
+
                     val iconColor by animateColorAsState(
                         targetValue = if (isSelected) BiruPrimer else TextColor.copy(alpha = 0.6f),
                         animationSpec = tween(300), label = "iconColor"
