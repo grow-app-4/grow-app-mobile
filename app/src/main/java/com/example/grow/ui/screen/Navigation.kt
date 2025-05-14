@@ -2,7 +2,7 @@ package com.example.grow.ui.screen
 
 import ForgotPasswordScreen
 import HomeScreen
-import LoginScreen2
+import LoginScreen
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -100,7 +100,7 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
             TambahAnakScreen(navController = navController, userId = userId)
         }
         composable(Screen.Login.route) {
-            LoginScreen2(navController, viewModel)
+            LoginScreen(navController, viewModel)
         }
         composable("register") { RegisterScreen() }
         composable("forgot_password") { ForgotPasswordScreen(navController) }

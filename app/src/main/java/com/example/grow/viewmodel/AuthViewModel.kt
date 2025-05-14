@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.data.Resource
 import com.example.grow.data.model.AuthResponse
+import com.example.grow.data.model.ForgotPasswordRequest
 import com.example.grow.data.model.LoginRequest
 import com.example.grow.data.repository.AuthRepository
 import com.example.grow.util.SessionManager
@@ -25,6 +26,9 @@ class AuthViewModel @Inject constructor(
 
     private val _userIdState = MutableStateFlow<Int?>(null)
     val userIdState: StateFlow<Int?> = _userIdState
+
+    private val _forgotPasswordState = MutableStateFlow<Resource<String>>(Resource.Loading())
+    val forgotPasswordState: StateFlow<Resource<String>> = _forgotPasswordState
 
     fun login(email: String, password: String, context: Context) {
         viewModelScope.launch {
@@ -46,6 +50,20 @@ class AuthViewModel @Inject constructor(
             _loginState.value = Resource.Loading() // Reset login state
             _userIdState.value = null
             Log.d("AuthViewModel", "Logged out, loginState reset")
+        }
+    }
+
+    fun forgotPassword(email: String) {
+        viewModelScope.launch {
+            try {
+                _forgotPasswordState.value = Resource.Loading()
+                val response = repository.forgotPassword(ForgotPasswordRequest(email))
+                _forgotPasswordState.value = Resource.Success(response.message)
+                Log.d("AuthViewModel", "Forgot password success: ${response.message}")
+            } catch (e: Exception) {
+                _forgotPasswordState.value = Resource.Error(e.localizedMessage ?: "Gagal mengirim permintaan reset password")
+                Log.e("AuthViewModel", "Forgot password error: ${e.message}")
+            }
         }
     }
 
