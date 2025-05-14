@@ -4,7 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.grow.ui.screen.MainScreen
+import androidx.navigation.compose.rememberNavController
+import com.example.grow.navigation.AppNavGraph
 import com.example.grow.ui.theme.GROWTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -15,7 +16,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GROWTheme {
-                MainScreen()  // Menampilkan MainScreen dengan Jetpack Compose
+                val navController = rememberNavController()
+                AppNavGraph(navController = navController)
             }
         }
     }
