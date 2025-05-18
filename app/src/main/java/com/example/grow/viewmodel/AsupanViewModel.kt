@@ -1,12 +1,17 @@
 package com.example.grow.viewmodel
 
+import android.util.Log
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.model.Makanan2
 import com.example.grow.remote.Makanan2ApiService
 import com.example.grow.model.MakananInput
 import com.example.grow.model.AnalisisAsupanRequest
+import com.example.grow.model.MakananIbu
 import com.example.grow.model.NutrisiAnalisisResponse
+import com.example.grow.model.StandarNutrisi
 import com.example.grow.remote.AsupanApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -31,6 +36,12 @@ class AsupanViewModel @Inject constructor(
     private val _result = MutableStateFlow<NutrisiAnalisisResponse?>(null)
     val result = _result.asStateFlow()
 
+    private val _makananIbuData = mutableStateOf<List<MakananIbu>>(emptyList())
+    val makananIbuData: State<List<MakananIbu>> = _makananIbuData
+
+    private val _standarNutrisi = mutableStateOf<List<StandarNutrisi>>(emptyList())
+    val standarNutrisi: State<List<StandarNutrisi>> = _standarNutrisi
+
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
@@ -51,6 +62,28 @@ class AsupanViewModel @Inject constructor(
 
     fun pilihMakanan(idMakanan: Int, jumlahPorsi: Int) {
         _selectedMakanan.value[idMakanan] = jumlahPorsi
+    }
+
+    fun fetchMakananIbu(userId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = asupanApi.getMakananIbu(userId)
+                _makananIbuData.value = response
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Gagal ambil data makanan ibu", e)
+            }
+        }
+    }
+
+    fun fetchStandarNutrisi(rentang: String, kategori: String = "ibu_hamil") {
+        viewModelScope.launch {
+            try {
+                val response = asupanApi.getStandarNutrisiByRentang(rentang, kategori)
+                _standarNutrisi.value = response
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Error fetch standar nutrisi", e)
+            }
+        }
     }
 
     fun kirimAnalisis(idUser: Int) {

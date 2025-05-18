@@ -1,9 +1,11 @@
 package com.example.grow.model
 
+import com.google.gson.annotations.SerializedName
+
 data class NutrisiAnalisisResponse(
-    val usia_kehamilan_minggu: Float,
+    @SerializedName("usia_kehamilan_minggu") val usiaKehamilanMinggu: Float,
     val rentang: String,
-    val total_nutrisi: Map<String, Float>, // atau Map<Int, Float> jika pakai ID
-    val hasil_analisis: Map<String, String> // karbohidrat: cukup / kurang
+    @SerializedName("total_nutrisi_keseluruhan") val totalNutrisi: Map<String, Float>
 )
+
 

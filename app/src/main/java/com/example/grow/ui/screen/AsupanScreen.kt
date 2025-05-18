@@ -12,6 +12,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.navigation.NavController
 import com.example.grow.model.Makanan2
 import com.example.grow.viewmodel.AsupanViewModel
 import com.example.grow.enu.KategoriMakanan
@@ -19,12 +22,16 @@ import com.example.grow.enu.KategoriMakanan
 @Composable
 fun AsupanScreen(
     idUser: Int,
+    navController: NavController,
     viewModel: AsupanViewModel = hiltViewModel()
 ) {
     val makananPerKategori by viewModel.makananGrouped.collectAsState()
     val selectedMakanan by viewModel.selectedMakanan.collectAsState()
     val result by viewModel.result.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState()}
+    var showNavigateButton by remember { mutableStateOf(false) }
 
     var currentStepIndex by remember { mutableStateOf(0) }
     val kategoriList = KategoriMakanan.ordered
@@ -38,77 +45,104 @@ fun AsupanScreen(
     var selectedMakananObj by remember { mutableStateOf<Makanan2?>(null) }
     var inputPorsi by remember { mutableStateOf("") }
 
+    val rentang = "kehamilan_0_3_bulan" // atau hitung berdasarkan usia kehamilan
+
+
     LaunchedEffect(Unit) {
         viewModel.loadMakananIbuHamil()
     }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
+    // Tampilkan snackbar saat result pertama kali muncul
+    LaunchedEffect(result) {
+        result?.let {
+            snackbarHostState.showSnackbar("Analisis berhasil! Silakan lihat grafik hasil.")
+            showNavigateButton = true
+        }
+    }
 
-        Text("Kategori: ${currentKategori.label}", style = MaterialTheme.typography.titleLarge)
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
+        Column(modifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()
+            .padding(16.dp)) {
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Text("Kategori: ${currentKategori.label}", style = MaterialTheme.typography.titleLarge)
 
-        LazyColumn {
-            items(listMakanan) { makanan ->
-                val porsi = selectedMakanan[makanan.id_makanan] ?: 0
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clickable {
-                            selectedMakananObj = makanan
-                            inputPorsi = ""
-                            showDialog = true
+            Spacer(modifier = Modifier.height(12.dp))
+
+            LazyColumn {
+                items(listMakanan) { makanan ->
+                    val porsi = selectedMakanan[makanan.id_makanan] ?: 0
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                selectedMakananObj = makanan
+                                inputPorsi = ""
+                                showDialog = true
+                            }
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(makanan.nama_makanan, style = MaterialTheme.typography.bodyLarge)
+                            Text("Porsi: $porsi")
+                            Text("Ukuran: ${makanan.ukuran_porsi_umpama}")
                         }
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(makanan.nama_makanan, style = MaterialTheme.typography.bodyLarge)
-                        Text("Porsi: $porsi")
-                        Text("Ukuran: ${makanan.ukuran_porsi_umpama}")
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            if (currentStepIndex > 0) {
-                Button(onClick = { currentStepIndex-- }) {
-                    Text("Kembali")
-                }
-            }
-
-            if (currentStepIndex < kategoriList.lastIndex) {
-                Button(onClick = { currentStepIndex++ }) {
-                    Text("Lanjut")
-                }
-            } else {
-                Button(onClick = { viewModel.kirimAnalisis(idUser) }) {
-                    Text("Kirim")
-                }
-            }
-        }
-
-        if (isLoading) {
-            LinearProgressIndicator(modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp))
-        }
-
-        result?.let {
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Hasil Analisis:")
-            it.total_nutrisi.forEach { (id, value) ->
-                val label = if (id == "1") "Karbohidrat" else "Protein"
-                val status = it.hasil_analisis[label.lowercase()] ?: "?"
-                Text("$label: $value g → $status")
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                if (currentStepIndex > 0) {
+                    Button(onClick = { currentStepIndex-- }) {
+                        Text("Kembali")
+                    }
+                }
+
+                if (currentStepIndex < kategoriList.lastIndex) {
+                    Button(onClick = { currentStepIndex++ }) {
+                        Text("Lanjut")
+                    }
+                } else {
+                    Button(onClick = { viewModel.kirimAnalisis(idUser) }) {
+                        Text("Kirim")
+                    }
+                }
             }
+
+            if (isLoading) {
+                LinearProgressIndicator(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp))
+            }
+
+            result?.let {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("✅ Analisis berhasil dilakukan.", color = MaterialTheme.colorScheme.primary)
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = {
+                    // Navigasi manual ke GrafikHasilScreen
+                    navController.navigate("grafik_hasil_screen/$idUser/$rentang")
+                }) {
+                    Text("Lihat Grafik Hasil")
+                }
+            }
+
+            // Tampilkan tombol menuju grafik jika hasil tersedia
+//            if (showNavigateButton) {
+//                Spacer(modifier = Modifier.height(16.dp))
+//                Button(onClick = { navController.navigate("nutrisi-screen") }) {
+//                    Text("Lihat Grafik Hasil")
+//                }
+//            }
         }
     }
 
