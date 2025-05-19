@@ -8,4 +8,9 @@ data class NutrisiAnalisisResponse(
     @SerializedName("total_nutrisi_keseluruhan") val totalNutrisi: Map<String, Float>
 )
 
+data class AnalisisAsupanRequest(
+    val id_user: Int,
+    val tanggal_konsumsi: String,
+    val makanan: List<MakananInput>
+)
 

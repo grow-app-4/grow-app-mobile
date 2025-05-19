@@ -1,12 +1,15 @@
 package com.example.grow.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.model.KehamilanRequest
 import com.example.grow.model.KehamilanResponse
+import com.example.grow.model.UsiaKehamilanResponse
 import com.example.grow.remote.KehamilanApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,6 +28,9 @@ class KehamilanViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 
+    private val _usiaKehamilan = MutableStateFlow<UsiaKehamilanResponse?>(null)
+    val usiaKehamilan: StateFlow<UsiaKehamilanResponse?> = _usiaKehamilan
+
     fun tambahKehamilan(idUser: Int, tanggal: String, berat: Float) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -42,6 +48,20 @@ class KehamilanViewModel @Inject constructor(
                 _error.value = e.localizedMessage ?: "Unknown error"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadUsiaKehamilan(userId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = api.getUsiaKehamilan(userId)
+                Log.d("KehamilanViewModel", "Response: $response")
+                _usiaKehamilan.value = response
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Log.e("KehamilanViewModel", "Exception: ${e.message}")
+                _usiaKehamilan.value = null
             }
         }
     }

@@ -5,8 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.grow.model.Makanan2
-import com.example.grow.remote.Makanan2ApiService
+import com.example.grow.model.Makanan
+import com.example.grow.remote.MakananApiService
 import com.example.grow.model.MakananInput
 import com.example.grow.model.AnalisisAsupanRequest
 import com.example.grow.model.MakananIbu
@@ -20,14 +20,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AsupanViewModel @Inject constructor(
-    private val makananApi: Makanan2ApiService,
+    private val makananApi: MakananApiService,
     private val asupanApi: AsupanApiService
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
-    private val _makananGrouped = MutableStateFlow<Map<String, List<Makanan2>>>(emptyMap())
+    private val _makananGrouped = MutableStateFlow<Map<String, List<Makanan>>>(emptyMap())
     val makananGrouped = _makananGrouped.asStateFlow()
 
     private val _selectedMakanan = MutableStateFlow<MutableMap<Int, Int>>(mutableMapOf())
@@ -43,7 +43,10 @@ class AsupanViewModel @Inject constructor(
     val standarNutrisi: State<List<StandarNutrisi>> = _standarNutrisi
 
     private val _error = MutableStateFlow<String?>(null)
-    val error = _error.asStateFlow()
+//    val error = _error.asStateFlow()
+
+    private val _asupanHariIni = MutableStateFlow<Boolean?>(null)
+    val asupanHariIni: StateFlow<Boolean?> = _asupanHariIni
 
     fun loadMakananIbuHamil() {
         viewModelScope.launch {
@@ -56,6 +59,19 @@ class AsupanViewModel @Inject constructor(
                 _error.value = e.localizedMessage ?: "Gagal memuat data makanan"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun checkAsupanHariIni(userId: Int, tanggal: String) {
+        viewModelScope.launch {
+            try {
+                val response = asupanApi.checkAsupan(userId, tanggal)
+                _asupanHariIni.value = response.status
+                _makananIbuData.value = response.data
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Gagal cek asupan: ${e.message}")
+                _asupanHariIni.value = false // fallback jika gagal
             }
         }
     }
@@ -86,16 +102,17 @@ class AsupanViewModel @Inject constructor(
         }
     }
 
-    fun kirimAnalisis(idUser: Int) {
+    fun kirimAnalisis(idUser: Int, tanggalKonsumsi: String) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 val list = _selectedMakanan.value.map { (id, porsi) ->
-                    MakananInput(id, porsi)
+                    MakananInput(id_makanan = id, jumlah_porsi = porsi)
                 }
                 val response = asupanApi.analisisAsupan(
                     AnalisisAsupanRequest(
                         id_user = idUser,
+                        tanggal_konsumsi = tanggalKonsumsi,
                         makanan = list
                     )
                 )

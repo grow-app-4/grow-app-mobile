@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -15,13 +14,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.navigation.NavController
-import com.example.grow.model.Makanan2
+import com.example.grow.model.Makanan
 import com.example.grow.viewmodel.AsupanViewModel
 import com.example.grow.enu.KategoriMakanan
 
 @Composable
 fun AsupanScreen(
     idUser: Int,
+    tanggalKonsumsi: String,
     navController: NavController,
     viewModel: AsupanViewModel = hiltViewModel()
 ) {
@@ -38,11 +38,9 @@ fun AsupanScreen(
     val currentKategori = kategoriList[currentStepIndex]
     val listMakanan = makananPerKategori[currentKategori.label] ?: emptyList()
 
-    val context = LocalContext.current
-
     // Dialog state
     var showDialog by remember { mutableStateOf(false) }
-    var selectedMakananObj by remember { mutableStateOf<Makanan2?>(null) }
+    var selectedMakananObj by remember { mutableStateOf<Makanan?>(null) }
     var inputPorsi by remember { mutableStateOf("") }
 
     val rentang = "kehamilan_0_3_bulan" // atau hitung berdasarkan usia kehamilan
@@ -111,7 +109,7 @@ fun AsupanScreen(
                         Text("Lanjut")
                     }
                 } else {
-                    Button(onClick = { viewModel.kirimAnalisis(idUser) }) {
+                    Button(onClick = { viewModel.kirimAnalisis(idUser, tanggalKonsumsi) }) {
                         Text("Kirim")
                     }
                 }
@@ -128,10 +126,13 @@ fun AsupanScreen(
                 Text("✅ Analisis berhasil dilakukan.", color = MaterialTheme.colorScheme.primary)
 
                 Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = {
-                    // Navigasi manual ke GrafikHasilScreen
-                    navController.navigate("grafik_hasil_screen/$idUser/$rentang")
-                }) {
+                Button(
+                    onClick = {
+                        navController.navigate("beranda/$idUser") {
+                            popUpTo("asupan_screen/$idUser/$tanggalKonsumsi") { inclusive = true }
+                        }
+                    }
+                ) {
                     Text("Lihat Grafik Hasil")
                 }
             }

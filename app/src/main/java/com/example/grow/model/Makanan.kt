@@ -2,7 +2,18 @@ package com.example.grow.model
 
 import com.google.gson.annotations.SerializedName
 
-data class Makanan2(
+data class MakananResponse(
+    val status: String,
+    val message: String,
+    val data: List<Makanan>
+)
+
+data class MakananInput(
+    val id_makanan: Int,
+    val jumlah_porsi: Int
+)
+
+data class Makanan(
     @SerializedName("id_makanan")
     val id_makanan: Int,
 

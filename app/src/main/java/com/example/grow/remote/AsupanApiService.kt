@@ -1,6 +1,7 @@
 package com.example.grow.remote
 
 import com.example.grow.model.AnalisisAsupanRequest
+import com.example.grow.model.CheckAsupanResponse
 import com.example.grow.model.MakananIbu
 import com.example.grow.model.NutrisiAnalisisResponse
 import com.example.grow.model.StandarNutrisi
@@ -24,4 +25,10 @@ interface AsupanApiService {
         @Query("rentang") rentang: String,
         @Query("kategori") kategori: String
     ): List<StandarNutrisi>
+
+    @GET("asupan/check")
+    suspend fun checkAsupan(
+        @Query("userId") userId: Int,
+        @Query("tanggal") tanggal: String
+    ): CheckAsupanResponse
 }

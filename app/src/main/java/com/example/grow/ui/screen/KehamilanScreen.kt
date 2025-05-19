@@ -18,9 +18,9 @@ import com.example.grow.viewmodel.KehamilanViewModel
 @Composable
 fun KehamilanScreen(
     viewModel: KehamilanViewModel = hiltViewModel(),
-    onNavigateToAsupan: (Int) -> Unit
+    onNavigateToBeranda: (Int) -> Unit
 ) {
-    val idUser = 1 // ganti jika perlu
+    val idUser = 1 // Ganti sesuai kebutuhan
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val response by viewModel.kehamilanResult.collectAsState()
@@ -79,7 +79,9 @@ fun KehamilanScreen(
         }
 
         if (isLoading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+            LinearProgressIndicator(modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp))
         }
 
         error?.let {
@@ -96,13 +98,13 @@ fun KehamilanScreen(
             Button(
                 onClick = {
                     val userId = it.data.id_user
-                    onNavigateToAsupan(userId)
+                    onNavigateToBeranda(userId)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp)
             ) {
-                Text("Lanjut ke Input Asupan")
+                Text("Lanjut ke Beranda")
             }
         }
     }
