@@ -38,14 +38,6 @@ fun AsupanScreen(
     val currentKategori = kategoriList[currentStepIndex]
     val listMakanan = makananPerKategori[currentKategori.label] ?: emptyList()
 
-    // Dialog state
-    var showDialog by remember { mutableStateOf(false) }
-    var selectedMakananObj by remember { mutableStateOf<Makanan?>(null) }
-    var inputPorsi by remember { mutableStateOf("") }
-
-    val rentang = "kehamilan_0_3_bulan" // atau hitung berdasarkan usia kehamilan
-
-
     LaunchedEffect(Unit) {
         viewModel.loadMakananIbuHamil()
     }
@@ -70,23 +62,33 @@ fun AsupanScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            LazyColumn {
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
                 items(listMakanan) { makanan ->
-                    val porsi = selectedMakanan[makanan.id_makanan] ?: 0
+                    val currentPorsi = selectedMakanan[makanan.id_makanan] ?: 0
+                    var inputText by remember(makanan.id_makanan) { mutableStateOf(currentPorsi.toString()) }
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
-                            .clickable {
-                                selectedMakananObj = makanan
-                                inputPorsi = ""
-                                showDialog = true
-                            }
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(makanan.nama_makanan, style = MaterialTheme.typography.bodyLarge)
-                            Text("Porsi: $porsi")
                             Text("Ukuran: ${makanan.ukuran_porsi_umpama}")
+                            Spacer(modifier = Modifier.height(4.dp))
+                            OutlinedTextField(
+                                value = inputText,
+                                onValueChange = { newText ->
+                                    inputText = newText
+                                    val jumlah = newText.toIntOrNull() ?: 0
+                                    viewModel.pilihMakanan(makanan.id_makanan, jumlah)
+                                },
+                                label = { Text("Jumlah Porsi") },
+                                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
@@ -136,43 +138,6 @@ fun AsupanScreen(
                     Text("Lihat Grafik Hasil")
                 }
             }
-
-            // Tampilkan tombol menuju grafik jika hasil tersedia
-//            if (showNavigateButton) {
-//                Spacer(modifier = Modifier.height(16.dp))
-//                Button(onClick = { navController.navigate("nutrisi-screen") }) {
-//                    Text("Lihat Grafik Hasil")
-//                }
-//            }
         }
-    }
-
-    if (showDialog && selectedMakananObj != null) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Masukkan porsi untuk ${selectedMakananObj?.nama_makanan}") },
-            text = {
-                OutlinedTextField(
-                    value = inputPorsi,
-                    onValueChange = { inputPorsi = it },
-                    label = { Text("Jumlah Porsi") },
-                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    val jumlah = inputPorsi.toIntOrNull() ?: 0
-                    viewModel.pilihMakanan(selectedMakananObj!!.id_makanan, jumlah)
-                    showDialog = false
-                }) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Batal")
-                }
-            }
-        )
     }
 }
