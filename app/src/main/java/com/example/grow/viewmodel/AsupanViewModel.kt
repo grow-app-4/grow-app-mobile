@@ -48,6 +48,13 @@ class AsupanViewModel @Inject constructor(
     private val _asupanHariIni = MutableStateFlow<Boolean?>(null)
     val asupanHariIni: StateFlow<Boolean?> = _asupanHariIni
 
+    private val _tanggalDipilih = MutableStateFlow<String?>(null)
+    val tanggalDipilih: StateFlow<String?> = _tanggalDipilih
+
+    fun setTanggalDipilih(tanggal: String) {
+        _tanggalDipilih.value = tanggal
+    }
+
     fun loadMakananIbuHamil() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -80,13 +87,13 @@ class AsupanViewModel @Inject constructor(
         _selectedMakanan.value[idMakanan] = jumlahPorsi
     }
 
-    fun fetchMakananIbu(userId: Int) {
+    fun fetchMakananIbu(userId: Int, tanggal: String) {
         viewModelScope.launch {
             try {
-                val response = asupanApi.getMakananIbu(userId)
+                val response = asupanApi.getMakananIbu(userId, tanggal)
                 _makananIbuData.value = response
             } catch (e: Exception) {
-                Log.e("ViewModel", "Gagal ambil data makanan ibu", e)
+                Log.e("ViewModel", "Gagal ambil data makanan ibu pada tanggal $tanggal", e)
             }
         }
     }

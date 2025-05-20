@@ -66,16 +66,18 @@ fun KehamilanScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                if (tanggal.isNotEmpty() && berat.toFloatOrNull() != null) {
-                    viewModel.tambahKehamilan(idUser, tanggal, berat.toFloat())
-                }
-            },
-            enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Simpan")
+        if (response == null) {
+            Button(
+                onClick = {
+                    if (tanggal.isNotEmpty() && berat.toFloatOrNull() != null) {
+                        viewModel.tambahKehamilan(idUser, tanggal, berat.toFloat())
+                    }
+                },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Simpan")
+            }
         }
 
         if (isLoading) {

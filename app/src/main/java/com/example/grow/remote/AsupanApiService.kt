@@ -18,7 +18,10 @@ interface AsupanApiService {
     ): NutrisiAnalisisResponse
 
     @GET("makanan-ibu/{id_user}")
-    suspend fun getMakananIbu(@Path("id_user") userId: Int): List<MakananIbu>
+    suspend fun getMakananIbu(
+        @Path("id_user") userId: Int,
+        @Query("tanggal") tanggal: String
+    ): List<MakananIbu>
 
     @GET("standar-nutrisi-by-rentang")
     suspend fun getStandarNutrisiByRentang(

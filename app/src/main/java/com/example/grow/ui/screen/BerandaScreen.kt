@@ -27,6 +27,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,9 +38,14 @@ fun BerandaScreen(
     viewModelAsupan: AsupanViewModel = hiltViewModel(),
     viewModelKehamilan: KehamilanViewModel = hiltViewModel()
 ) {
+    val navBackStackEntry = navController.currentBackStackEntryAsState().value
+    val tanggalFromArg = navBackStackEntry?.arguments?.getString("tanggal")
     val tanggalHariIni = remember {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         sdf.format(Date())
+    }
+    var selectedDate by rememberSaveable {
+        mutableStateOf(tanggalFromArg ?: tanggalHariIni)
     }
 
     val sudahAdaAsupan by viewModelAsupan.asupanHariIni.collectAsState()
@@ -47,17 +54,22 @@ fun BerandaScreen(
     val standarList by viewModelAsupan.standarNutrisi
 
     val context = LocalContext.current
-    var selectedDate by remember { mutableStateOf("") }
-    val datePickerDialog = rememberDatePickerDialog { date -> selectedDate = date }
+//    var selectedDate by remember { mutableStateOf(tanggalHariIni) }
+    val datePickerDialog = rememberDatePickerDialog {
+        date -> selectedDate = date
+        viewModelAsupan.setTanggalDipilih(date)
+    }
 
-    LaunchedEffect(userId, tanggalHariIni) {
-        viewModelAsupan.checkAsupanHariIni(userId, tanggalHariIni)
+    LaunchedEffect(userId, selectedDate) {
+        viewModelAsupan.setTanggalDipilih(selectedDate)
+        viewModelAsupan.checkAsupanHariIni(userId, selectedDate)
         viewModelKehamilan.loadUsiaKehamilan(userId)
+        viewModelAsupan.fetchMakananIbu(userId, selectedDate)
     }
 
     LaunchedEffect(sudahAdaAsupan, usiaKehamilan) {
         if (sudahAdaAsupan == true && usiaKehamilan != null) {
-            viewModelAsupan.fetchMakananIbu(userId)
+//            viewModelAsupan.fetchMakananIbu(userId)
 
             val kategori = when (usiaKehamilan!!.bulan) {
                 in 0..3 -> "kehamilan_0_3_bulan"
@@ -101,9 +113,18 @@ fun BerandaScreen(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedButton(
+                onClick = { datePickerDialog.show() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Ganti Tanggal Konsumsi (Saat Ini: $selectedDate)")
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // 🧪 Judul dan grafik hasil
             Text(
@@ -223,28 +244,16 @@ fun BerandaScreen(
                         }
                     } else {
                         // Jika sudah ada data kehamilan, tampilkan tombol pilih tanggal konsumsi seperti biasa
-                        if (selectedDate.isNotEmpty()) {
-                            Button(
-                                onClick = {
-                                    navController.navigate("asupan_screen/$userId/$selectedDate")
-                                },
-                                shape = RoundedCornerShape(50),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                            ) {
-                                Text(text = "Tambah Data Asupan untuk $selectedDate")
-                            }
-                        } else {
-                            Button(
-                                onClick = { datePickerDialog.show() },
-                                shape = RoundedCornerShape(50),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
-                            ) {
-                                Text(text = "Pilih Tanggal Konsumsi")
-                            }
+                        Button(
+                            onClick = {
+                                navController.navigate("asupan_screen/$userId/$selectedDate")
+                            },
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Text(text = "Tambah Data Asupan untuk $selectedDate")
                         }
                     }
                 }
@@ -255,18 +264,6 @@ fun BerandaScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-
-//            if (usiaKehamilan == null) {
-//                Button(
-//                    onClick = { navController.navigate("kehamilan") },
-//                    shape = RoundedCornerShape(50),
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .padding(vertical = 8.dp)
-//                ) {
-//                    Text(text = "Tambah Data Kehamilan")
-//                }
-//            }
         }
     }
 }
@@ -302,50 +299,48 @@ fun GrafikHasil(
         AndroidView(
             factory = { context ->
                 BarChart(context).apply {
-                    setBackgroundColor(android.graphics.Color.WHITE)
-                    val labels = mutableListOf<String>()
-                    val konsumsiEntries = mutableListOf<BarEntry>()
-                    val standarEntries = mutableListOf<BarEntry>()
-
-                    var entryIndex = 0
-                    standarList.forEach { standar ->
-                        val namaNutrisiKey = idToNamaNutrisiMap[standar.id_nutrisi]
-                        if (namaNutrisiKey != null) {
-                            val nilaiKonsumsi = totalNutrisi[namaNutrisiKey] ?: 0f
-                            labels.add(namaNutrisiKey)
-                            konsumsiEntries.add(BarEntry(entryIndex.toFloat(), nilaiKonsumsi))
-                            standarEntries.add(BarEntry(entryIndex.toFloat(), standar.nilai_min))
-                            entryIndex++
-                        }
-                    }
-
-                    val konsumsiDataSet = BarDataSet(konsumsiEntries, "Konsumsi").apply { color = Color.BLUE }
-                    val standarDataSet = BarDataSet(standarEntries, "Standar").apply { color = Color.RED }
-
-                    val barData = BarData(konsumsiDataSet, standarDataSet)
-                    barData.barWidth = 0.4f
-                    data = barData
-
-                    xAxis.valueFormatter = IndexAxisValueFormatter(labels)
-                    xAxis.position = XAxis.XAxisPosition.BOTTOM
-                    xAxis.granularity = 1f
-                    xAxis.setCenterAxisLabels(true)
-                    xAxis.axisMinimum = 0f
-
-                    val groupCount = labels.size
-                    val groupSpace = 0.2f
-                    val barSpace = 0f
-                    val groupWidth = barData.getGroupWidth(groupSpace, barSpace)
-
-                    xAxis.axisMaximum = 0f + groupWidth * groupCount
-                    barData.groupBars(0f, groupSpace, barSpace)
-
-                    axisLeft.axisMinimum = 0f
-                    axisRight.isEnabled = false
+                    setBackgroundColor(Color.WHITE)
                     description.isEnabled = false
-
-                    invalidate()
+                    axisRight.isEnabled = false
                 }
+            },
+            update = { chart ->
+                val labels = mutableListOf<String>()
+                val konsumsiEntries = mutableListOf<BarEntry>()
+                val standarEntries = mutableListOf<BarEntry>()
+
+                var entryIndex = 0
+                standarList.forEach { standar ->
+                    val namaNutrisiKey = idToNamaNutrisiMap[standar.id_nutrisi]
+                    if (namaNutrisiKey != null) {
+                        val nilaiKonsumsi = totalNutrisi[namaNutrisiKey] ?: 0f
+                        labels.add(namaNutrisiKey)
+                        konsumsiEntries.add(BarEntry(entryIndex.toFloat(), nilaiKonsumsi))
+                        standarEntries.add(BarEntry(entryIndex.toFloat(), standar.nilai_min))
+                        entryIndex++
+                    }
+                }
+
+                val konsumsiDataSet = BarDataSet(konsumsiEntries, "Konsumsi").apply { color = Color.BLUE }
+                val standarDataSet = BarDataSet(standarEntries, "Standar").apply { color = Color.RED }
+
+                val barData = BarData(konsumsiDataSet, standarDataSet)
+                barData.barWidth = 0.4f
+                chart.data = barData
+
+                chart.xAxis.apply {
+                    valueFormatter = IndexAxisValueFormatter(labels)
+                    position = XAxis.XAxisPosition.BOTTOM
+                    granularity = 1f
+                    setCenterAxisLabels(true)
+                    axisMinimum = 0f
+                    axisMaximum = 0f + barData.getGroupWidth(0.2f, 0f) * labels.size
+                }
+
+                chart.axisLeft.axisMinimum = 0f
+
+                barData.groupBars(0f, 0.2f, 0f)
+                chart.invalidate()
             },
             modifier = Modifier
                 .fillMaxWidth()

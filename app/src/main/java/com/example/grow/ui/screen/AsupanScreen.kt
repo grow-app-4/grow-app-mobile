@@ -130,7 +130,7 @@ fun AsupanScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = {
-                        navController.navigate("beranda/$idUser") {
+                        navController.navigate("beranda/$idUser?tanggal=$tanggalKonsumsi") {
                             popUpTo("asupan_screen/$idUser/$tanggalKonsumsi") { inclusive = true }
                         }
                     }
