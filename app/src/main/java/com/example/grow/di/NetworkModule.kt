@@ -3,6 +3,9 @@ package com.example.grow.di
 import com.example.grow.data.api.PertumbuhanApiService
 import com.example.grow.data.remote.AnakApiService
 import com.example.grow.data.remote.AuthApiService
+import com.example.grow.data.remote.AsupanApiService
+import com.example.grow.data.remote.KehamilanApiService
+import com.example.grow.data.remote.MakananApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -37,7 +40,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://559d-180-244-129-220.ngrok-free.app/api/")
+            .baseUrl("https://0d95-180-244-129-78.ngrok-free.app/api/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -59,5 +62,23 @@ object NetworkModule {
     @Singleton
     fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
         return retrofit.create(AuthApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideKehamilanApiService(retrofit: Retrofit): KehamilanApiService {
+        return retrofit.create(KehamilanApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAsupanApiService(retrofit: Retrofit): AsupanApiService {
+        return retrofit.create(AsupanApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMakananApiService(retrofit: Retrofit): MakananApiService {
+        return retrofit.create(MakananApiService::class.java)
     }
 }

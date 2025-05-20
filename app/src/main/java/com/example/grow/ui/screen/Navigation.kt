@@ -33,6 +33,13 @@ sealed class Screen(val route: String) {
     object TambahAnak : Screen("tambah_anak/{userId}") {
         fun createRoute(userId: Int) = "tambah_anak/$userId"
     }
+    object TambahKehamilan : Screen("tambah_kehamilan/{userId}") {
+        fun createRoute(userId: Int) = "tambah_kehamilan/$userId"
+    }
+    object TambahAsupan : Screen("asupan_screen/{idUser}/{tanggalKonsumsi}") {
+        fun createRoute(idUser: Int, tanggalKonsumsi: String) =
+            "asupan_screen/$idUser/$tanggalKonsumsi"
+    }
     object Login : Screen("login")
 }
 
@@ -67,8 +74,39 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
         composable(Screen.Home.route) {
             HomeScreen(navController = navController, userId = SessionManager.getUserId(context))
         }
+        composable(Screen.Nutrisi.route) {
+            val userId = SessionManager.getUserId(context)
+            NutrisiScreen(navController = navController, userId = userId)
+        }
         composable(Screen.Profile.route) {
             ProfileScreen(navController = navController, viewModel = viewModel)
+        }
+        composable(
+            route = Screen.TambahKehamilan.route,
+            arguments = listOf(navArgument("userId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getInt("userId") ?: 0
+
+            TambahKehamilanScreen(
+                userId = userId,
+                onNavigateToNutrisi = { navController.navigate(Screen.Nutrisi.route) }
+            )
+        }
+        composable(
+            route = Screen.TambahAsupan.route,
+            arguments = listOf(
+                navArgument("idUser") { type = NavType.IntType },
+                navArgument("tanggalKonsumsi") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val idUser = backStackEntry.arguments?.getInt("idUser") ?: 0
+            val tanggalKonsumsi = backStackEntry.arguments?.getString("tanggalKonsumsi") ?: ""
+
+            TambahAsupanScreen(
+                idUser = idUser,
+                tanggalKonsumsi = tanggalKonsumsi,
+                navController = navController
+            )
         }
         composable(
             Screen.InputDataPertumbuhan.route,

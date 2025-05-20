@@ -6,6 +6,14 @@ data class KehamilanResponse(
     val data: KehamilanData
 )
 
+data class UsiaKehamilanResponse(
+    val bulan: Int,
+    val hari: Int,
+    val total_hari: Double,
+    val tanggal_mulai: String
+)
+
+
 data class KehamilanRequest(
     val id_user: Int,
     val tanggal_mulai: String,  // format "YYYY-MM-DD"
