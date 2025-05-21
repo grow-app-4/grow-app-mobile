@@ -3,13 +3,7 @@ package com.example.grow.di
 import android.content.Context
 import android.util.Log
 import androidx.room.Room
-import com.example.grow.data.AppDatabase
-import com.example.grow.data.PertumbuhanDao
-import com.example.grow.data.DetailPertumbuhanDao
-import com.example.grow.data.AnakDao
-import com.example.grow.data.JenisPertumbuhanDao
-import com.example.grow.data.StandarPertumbuhanDao
-import com.example.grow.data.ResepDao
+import com.example.grow.data.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,12 +17,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
-        Log.d("AppDatabase", "Creating database instance")
+        Log.d("AppDatabase", "Creating database instance with version 10")
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
             "grow_db"
-        ).fallbackToDestructiveMigration() // nambahin ini aja
+        ).fallbackToDestructiveMigration() // Untuk pengembangan
             .build()
     }
 

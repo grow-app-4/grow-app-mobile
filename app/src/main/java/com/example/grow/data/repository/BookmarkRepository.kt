@@ -1,6 +1,7 @@
 package com.example.grow.data.repository
 
 import com.example.grow.data.model.Resep
+import com.example.grow.data.remote.ResepApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -8,22 +9,25 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BookmarkRepository @Inject constructor() {
+class BookmarkRepository @Inject constructor(
+    private val apiService: ResepApiService // Gunakan jika server mendukung bookmark
+) {
+    private val _bookmarkedResepIds = MutableStateFlow<Set<String>>(emptySet())
+    val bookmarkedResepIds: StateFlow<Set<String>> = _bookmarkedResepIds.asStateFlow()
 
-    private val _bookmarkedResepList = MutableStateFlow<List<Resep>>(emptyList())
-    val bookmarkedResepList: StateFlow<List<Resep>> = _bookmarkedResepList.asStateFlow()
-
-    fun toggleBookmark(resep: Resep) {
-        val currentList = _bookmarkedResepList.value.toMutableList()
-        if (isBookmarked(resep.idMakanan)) {
-            currentList.removeIf { it.idMakanan == resep.idMakanan }
+    suspend fun toggleBookmark(resep: Resep) {
+        val currentBookmarks = _bookmarkedResepIds.value.toMutableSet()
+        if (currentBookmarks.contains(resep.idResep)) {
+            currentBookmarks.remove(resep.idResep)
+            // Jika server mendukung: apiService.removeBookmark(resep.idResep)
         } else {
-            currentList.add(resep)
+            currentBookmarks.add(resep.idResep)
+            // Jika server mendukung: apiService.addBookmark(resep.idResep)
         }
-        _bookmarkedResepList.value = currentList
+        _bookmarkedResepIds.value = currentBookmarks
     }
 
     fun isBookmarked(resepId: String): Boolean {
-        return _bookmarkedResepList.value.any { it.idMakanan == resepId }
+        return _bookmarkedResepIds.value.contains(resepId)
     }
 }

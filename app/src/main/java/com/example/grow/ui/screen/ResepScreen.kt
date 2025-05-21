@@ -10,12 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,15 +20,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import com.example.grow.R
 import com.example.grow.data.model.Resep
-import com.example.grow.viewmodel.ResepViewModel
 import com.example.grow.ui.components.FilterDialog
-import com.example.grow.ui.components.FilterChips
-import com.example.grow.data.model.AppliedFilter
+import com.example.grow.viewmodel.ResepViewModel
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,95 +39,18 @@ fun ResepScreen(
     viewModel: ResepViewModel = hiltViewModel()
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val bookmarkedResepList by viewModel.bookmarkedResepList.collectAsState()
-
-    // BAGIAN YANG PERLU DIUBAH - Tambahkan state untuk filter
     var showFilterDialog by remember { mutableStateOf(false) }
 
-    // BAGIAN YANG PERLU DIUBAH - Filter state yang sama dengan BookmarkResepScreen
-    var selectedTimeFilter by remember { mutableStateOf("All") }
-    var selectedRatingFilter by remember { mutableStateOf<Int?>(null) }
-    var selectedCategoryFilter by remember { mutableStateOf("All") }
+    val bookmarkedResepIds by viewModel.bookmarkedResepIds.collectAsState()
+    val resepList by viewModel.resepList.collectAsState()
+    val loading by viewModel.loading.collectAsState()
+    val error by viewModel.error.collectAsState()
 
-    // Membuat data dummy untuk ditampilkan
-    val dummyResepList = remember {
-        listOf(
-            Resep(
-                idMakanan = "1",
-                namaMakanan = "Traditional spare ribs baked",
-                chefName = "Chef John",
-                rating = 4.0f,
-                imageUrl = R.drawable.ic_launcher_background
-            ),
-            Resep(
-                idMakanan = "2",
-                namaMakanan = "Lamb chops with fruity couscous and mint",
-                chefName = "Spicy Nelly",
-                rating = 4.0f,
-                imageUrl = R.drawable.ic_launcher_background
-            ),
-            Resep(
-                idMakanan = "3",
-                namaMakanan = "Spice roasted chicken with flavored rice",
-                chefName = "Mark Kelvin",
-                rating = 4.0f,
-                imageUrl = R.drawable.ic_launcher_background
-            ),
-            Resep(
-                idMakanan = "4",
-                namaMakanan = "Chinese style Egg fried rice with sliced pork",
-                chefName = "Laura Wilson",
-                rating = 4.0f,
-                imageUrl = R.drawable.ic_launcher_background
-            ),
-            // Mengulang data untuk mencapai 8 item seperti di screenshot
-            Resep(
-                idMakanan = "5",
-                namaMakanan = "Lamb chops with fruity couscous and mint",
-                chefName = "Spicy Nelly",
-                rating = 4.0f,
-                imageUrl = R.drawable.ic_launcher_background
-            ),
-            Resep(
-                idMakanan = "6",
-                namaMakanan = "Traditional spare ribs baked",
-                chefName = "Chef John",
-                rating = 4.0f,
-                imageUrl = R.drawable.ic_launcher_background
-            ),
-            Resep(
-                idMakanan = "7",
-                namaMakanan = "Spice roasted chicken with flavored rice",
-                chefName = "Mark Kelvin",
-                rating = 4.0f,
-                imageUrl = R.drawable.ic_launcher_background
-            ),
-            Resep(
-                idMakanan = "8",
-                namaMakanan = "Chinese style Egg fried rice with sliced pork",
-                chefName = "Laura Wilson",
-                rating = 4.0f,
-                imageUrl = R.drawable.ic_launcher_background
-            )
-        )
-    }
+    val selectedTimeFilter by viewModel.selectedTimeFilter.collectAsState()
+    val selectedRatingFilter by viewModel.selectedRatingFilter.collectAsState()
+    val selectedCategoryFilter by viewModel.selectedCategoryFilter.collectAsState()
 
-    // Menggunakan data dummy, nanti bisa diganti dengan data dari ViewModel
-    val resepList = dummyResepList
-
-    val filteredResepList = dummyResepList.filter {
-        val matchesSearch = searchQuery.isEmpty() || it.namaMakanan.contains(searchQuery, ignoreCase = true)
-        val matchesTime = when (selectedTimeFilter) {
-            "Newest" -> true // Logika untuk newest bisa ditambahkan
-            "Oldest" -> true // Logika untuk oldest bisa ditambahkan
-            "Popularity" -> true // Logika untuk popularity bisa ditambahkan
-            else -> true
-        }
-        val matchesRating = selectedRatingFilter?.let { rating -> it.rating?.toInt() == rating } ?: true
-        val matchesCategory = selectedCategoryFilter == "All" || it.namaMakanan.contains(selectedCategoryFilter, ignoreCase = true)
-
-        matchesSearch && matchesTime && matchesRating && matchesCategory
-    }
+    val filteredResepList = viewModel.getFilteredResepList(searchQuery)
 
     Scaffold(
         topBar = {
@@ -138,56 +58,35 @@ fun ResepScreen(
                 title = { Text("Cari Resep", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali"
-                        )
+                        Icon(Icons.Default.ArrowBack, "Kembali")
                     }
                 },
                 actions = {
-                    // Tambahkan tombol untuk ke halaman bookmark
-                    IconButton(onClick = { navController.navigate(Screen.BookmarkResep.route) }) {
-                        Icon(
-                            imageVector = Icons.Default.Bookmark,
-                            contentDescription = "Bookmark List",
-                            tint = Color(0xFF1876F2)
-                        )
+                    IconButton(onClick = { navController.navigate("bookmark_resep") }) {
+                        Icon(Icons.Default.Bookmark, "Bookmark List", tint = Color(0xFF1876F2))
                     }
                 }
             )
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            // Search Bar
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("Cari Resep") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search Icon"
-                        )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(16.dp)),
+                    leadingIcon = { Icon(Icons.Default.Search, "Search Icon") },
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp)),
                     shape = RoundedCornerShape(16.dp),
                     singleLine = true,
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         unfocusedBorderColor = Color.LightGray
                     )
                 )
-
                 Spacer(modifier = Modifier.width(16.dp))
-
-                // Filter Button (Blue Button)
                 Button(
                     onClick = { showFilterDialog = true },
                     modifier = Modifier.size(54.dp),
@@ -195,64 +94,46 @@ fun ResepScreen(
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1876F2))
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = "Filter",
-                        tint = Color.White
-                    )
+                    Icon(Icons.Default.Tune, "Filter", tint = Color.White)
                 }
             }
+
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (selectedTimeFilter != "All") {
                     FilterChip(
                         selected = true,
-                        onClick = { selectedTimeFilter = "All" },
+                        onClick = { viewModel.setFilters("All", selectedRatingFilter, selectedCategoryFilter) },
                         label = { Text(selectedTimeFilter) },
                         trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Hapus filter",
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
                         }
                     )
                 }
                 if (selectedRatingFilter != null) {
                     FilterChip(
                         selected = true,
-                        onClick = { selectedRatingFilter = null },
+                        onClick = { viewModel.setFilters(selectedTimeFilter, null, selectedCategoryFilter) },
                         label = { Text("$selectedRatingFilter stars") },
                         trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Hapus filter",
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
                         }
                     )
                 }
                 if (selectedCategoryFilter != "All") {
                     FilterChip(
                         selected = true,
-                        onClick = { selectedCategoryFilter = "All" },
+                        onClick = { viewModel.setFilters(selectedTimeFilter, selectedRatingFilter, "All") },
                         label = { Text(selectedCategoryFilter) },
                         trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Hapus filter",
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
                         }
                     )
                 }
             }
 
-            // Pencarian Terbaru Text
             Text(
                 text = "Pencarian Terbaru",
                 style = MaterialTheme.typography.titleLarge,
@@ -260,37 +141,68 @@ fun ResepScreen(
                 modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
             )
 
-            // Grid of Recipe Cards
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(filteredResepList) { resep ->
-                    ResepCard(
-                        resep = resep,
-                        onClick = {
-                            navController.navigate(Screen.ResepDetail.createRoute(resep.idMakanan))
-                        },
-                        isBookmarked = bookmarkedResepList.any { it.idMakanan == resep.idMakanan },
-                        onBookmarkClick = {
-                            viewModel.toggleBookmark(resep)
+            Box(modifier = Modifier.fillMaxSize()) {
+                when {
+                    loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                            color = Color(0xFF1876F2)
+                        )
+                    }
+                    error != null -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.Error, "Error", tint = Color.Red, modifier = Modifier.size(48.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(error ?: "Terjadi kesalahan", color = Color.Red)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { viewModel.loadResep() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1876F2))
+                            ) {
+                                Text("Coba Lagi")
+                            }
                         }
-                    )
+                    }
+                    filteredResepList.isEmpty() -> {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.SearchOff, "No Results", tint = Color.Gray, modifier = Modifier.size(48.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Tidak ada resep yang ditemukan", color = Color.Gray)
+                        }
+                    }
+                    else -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(filteredResepList) { resep ->
+                                ResepCard(
+                                    resep = resep,
+                                    onClick = { navController.navigate("resep_detail/${resep.idResep}") },
+                                    isBookmarked = bookmarkedResepIds.contains(resep.idResep),
+                                    onBookmarkClick = { viewModel.toggleBookmark(resep) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // BAGIAN YANG PERLU DIUBAH - Dialog Filter seperti di BookmarkResepScreen
         if (showFilterDialog) {
             FilterDialog(
                 onDismiss = { showFilterDialog = false },
                 onFilterSelected = { time, rating, category ->
-                    selectedTimeFilter = time
-                    selectedRatingFilter = rating
-                    selectedCategoryFilter = category
+                    viewModel.setFilters(time, rating, category)
                     showFilterDialog = false
                 },
                 initialTimeFilter = selectedTimeFilter,
@@ -308,6 +220,10 @@ fun ResepCard(
     isBookmarked: Boolean,
     onBookmarkClick: () -> Unit
 ) {
+    println("Total Harga untuk ${resep.namaResep}: ${resep.totalHarga}")
+
+    val formattedPrice = NumberFormat.getCurrencyInstance(Locale("id", "ID")).format(resep.totalHarga ?: 0.0)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -316,35 +232,32 @@ fun ResepCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            // Food Image
+        Box(modifier = Modifier.fillMaxSize()) {
             Image(
-                painter = painterResource(id = resep.imageUrl ?: R.drawable.ic_star),
-                contentDescription = resep.namaMakanan,
+                painter = if (resep.imageUrl != null) {
+                    rememberAsyncImagePainter(
+                        model = resep.imageUrl,
+                        error = painterResource(id = R.drawable.ic_recipe_placeholder)
+                    )
+                } else {
+                    painterResource(id = R.drawable.ic_recipe_placeholder)
+                },
+                contentDescription = resep.namaResep,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Gradient overlay untuk teks
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.6f)
-                            ),
-                            startY = 0f,
-                            endY = 1000f
-                        )
+                modifier = Modifier.fillMaxSize().background(
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
+                        startY = 0f,
+                        endY = 1000f
                     )
+                )
             )
 
-            // Rating Badge with star icon
+            // Rating di kiri atas
             Row(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -352,29 +265,29 @@ fun ResepCard(
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color.White.copy(alpha = 0.9f))
                     .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_star),
-                    contentDescription = "Rating",
+                    painterResource(id = R.drawable.ic_star),
+                    "Rating",
                     tint = Color(0xFFFFD700),
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "${resep.rating}",
+                    "${resep.rating ?: 0f}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Black
                 )
             }
 
-            // Bookmark Icon - Tambahkan di posisi top end
+            // Hapus badge usia rekomendasi di kanan atas
+            // IconButton untuk bookmark tetap ada
             IconButton(
                 onClick = onBookmarkClick,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
+                    .padding(end = 8.dp, top = 8.dp)
                     .size(36.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.8f))
@@ -387,27 +300,43 @@ fun ResepCard(
                 )
             }
 
-            // Food Title and Chef Name
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
+                    .fillMaxWidth()
                     .padding(12.dp)
             ) {
                 Text(
-                    text = resep.namaMakanan,
+                    resep.namaResep,
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 2
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
-
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                    text = "By ${resep.chefName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
+                // Gabungkan usia rekomendasi dan harga dalam satu baris tanpa label "Rekomendasi:"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        resep.usiaRekomendasi ?: "N/A",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.9f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Text(
+                        formattedPrice,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
         }
     }

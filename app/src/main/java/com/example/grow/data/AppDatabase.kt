@@ -19,7 +19,7 @@ import com.example.grow.data.model.*
         NutrisiEntity::class,
         ResepNutrisiEntity::class
     ],
-    version = 8, // Naikkan versi database
+    version = 9, // Naikkan versi database
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,3 +30,4 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun standarPertumbuhanDao(): StandarPertumbuhanDao
     abstract fun resepDao(): ResepDao
 }
+

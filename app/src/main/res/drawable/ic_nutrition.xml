@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Bar chart sederhana untuk nutrisi -->
+    <!-- Bar pertama -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M6,18h2v-10h-2z"/>
+    <!-- Bar kedua -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M10,18h2v-6h-2z"/>
+    <!-- Bar ketiga -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M14,18h2v-8h-2z"/>
+    <!-- Sumbu X -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M4,18h14"
+        android:strokeWidth="1"
+        android:strokeColor="#000000"/>
+    <!-- Sumbu Y -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M6,18v-12"
+        android:strokeWidth="1"
+        android:strokeColor="#000000"/>
+</vector>
