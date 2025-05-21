@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.grow.ui.screen.AsupanAnakScreen
 import com.example.grow.ui.screen.AsupanScreen
 import com.example.grow.ui.screen.BerandaScreen
 import com.example.grow.ui.screen.KehamilanScreen
@@ -28,9 +29,15 @@ fun AppNavGraph(navController: NavHostController) {
             AsupanScreen(idUser = userId, tanggalKonsumsi = tanggalKonsumsi, navController = navController)
         }
 
+        composable("asupan_anak/{idAnak}") { backStackEntry ->
+            val idAnak = backStackEntry.arguments?.getString("idAnak")?.toIntOrNull() ?: return@composable
+            AsupanAnakScreen(idAnak = idAnak)
+        }
+
         composable("beranda/{userId}") { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")?.toIntOrNull() ?: 1
-            BerandaScreen(userId = userId, navController = navController)
+            val idAnak = backStackEntry.arguments?.getString("idAnak")?.toIntOrNull() ?: 1
+            BerandaScreen(userId = userId, idAnak = idAnak, navController = navController)
         }
 
         // Tambahan: route statis awal
