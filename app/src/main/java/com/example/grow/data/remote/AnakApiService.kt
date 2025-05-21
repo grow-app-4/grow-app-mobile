@@ -26,7 +26,7 @@ interface AnakApiService {
     suspend fun createAnak(@Body anakRequest: AnakRequest): Response<AnakSingleResponse>
 
     @PUT("anak/{id}")
-    suspend fun updateAnak(@Path("id") id: Int, @Body anak: HashMap<String, Any>): Response<AnakResponse>
+    suspend fun updateAnak(@Path("id") id: Int, @Body anak: HashMap<String, Any>): Response<AnakSingleResponse>
 
     @DELETE("anak/{id}")
     suspend fun deleteAnak(@Path("id") id: Int): Response<AnakResponse>

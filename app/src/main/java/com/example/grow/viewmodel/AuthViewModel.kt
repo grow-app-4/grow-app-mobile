@@ -5,20 +5,28 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.data.Resource
+import com.example.grow.data.UserEntity
 import com.example.grow.data.model.AuthResponse
+import com.example.grow.data.model.AuthUiState
 import com.example.grow.data.model.ForgotPasswordRequest
 import com.example.grow.data.model.LoginRequest
+import com.example.grow.data.model.RegisterRequest
 import com.example.grow.data.repository.AuthRepository
+import com.example.grow.data.repository.UserRepository
 import com.example.grow.util.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val repository: AuthRepository
+    private val repository: AuthRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _loginState = MutableStateFlow<Resource<AuthResponse>>(Resource.Loading())
@@ -30,16 +38,28 @@ class AuthViewModel @Inject constructor(
     private val _forgotPasswordState = MutableStateFlow<Resource<String>>(Resource.Loading())
     val forgotPasswordState: StateFlow<Resource<String>> = _forgotPasswordState
 
+    private val _uiState = MutableStateFlow(AuthUiState())
+    val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    fun getUserById(userId: Int): Flow<UserEntity?> {
+        return userRepository.getUserById(userId)
+    }
+
     fun login(email: String, password: String, context: Context) {
         viewModelScope.launch {
             try {
                 _loginState.value = Resource.Loading()
                 val response = repository.login(LoginRequest(email, password))
-                _loginState.value = Resource.Success(response)
-                _userIdState.value = response.user.id
-                SessionManager.saveLoginSession(context, response.user.id)
+                if (response.isSuccessful && response.body() != null) {
+                    val authResponse = response.body()!! // Ambil AuthResponse dari body
+                    _loginState.value = Resource.Success(authResponse)
+                    _userIdState.value = authResponse.user.id
+                    SessionManager.saveLoginSession(context, authResponse.user.id, authResponse.token)
+                } else {
+                    _loginState.value = Resource.Error("Login gagal: ${response.errorBody()?.string() ?: "Respon tidak valid"}")
+                }
             } catch (e: Exception) {
-                _loginState.value = Resource.Error(e.localizedMessage ?: "Error login")
+                _loginState.value = Resource.Error(e.localizedMessage ?: "Error saat login")
             }
         }
     }
@@ -58,10 +78,20 @@ class AuthViewModel @Inject constructor(
             try {
                 _forgotPasswordState.value = Resource.Loading()
                 val response = repository.forgotPassword(ForgotPasswordRequest(email))
-                _forgotPasswordState.value = Resource.Success(response.message)
-                Log.d("AuthViewModel", "Forgot password success: ${response.message}")
+                if (response.isSuccessful && response.body() != null) {
+                    val messageResponse = response.body()!! // Ambil MessageResponse
+                    _forgotPasswordState.value = Resource.Success(messageResponse.message)
+                    Log.d("AuthViewModel", "Forgot password success: ${messageResponse.message}")
+                } else {
+                    _forgotPasswordState.value = Resource.Error(
+                        response.errorBody()?.string() ?: "Gagal mengirim permintaan reset password"
+                    )
+                    Log.e("AuthViewModel", "Forgot password error: ${response.errorBody()?.string()}")
+                }
             } catch (e: Exception) {
-                _forgotPasswordState.value = Resource.Error(e.localizedMessage ?: "Gagal mengirim permintaan reset password")
+                _forgotPasswordState.value = Resource.Error(
+                    e.localizedMessage ?: "Gagal mengirim permintaan reset password"
+                )
                 Log.e("AuthViewModel", "Forgot password error: ${e.message}")
             }
         }
@@ -73,5 +103,59 @@ class AuthViewModel @Inject constructor(
 
     fun getUserId(context: Context): Int {
         return SessionManager.getUserId(context)
+    }
+
+    fun register(
+        name: String,
+        email: String,
+        password: String,
+        passwordConfirmation: String,
+        context: Context
+    ) {
+        viewModelScope.launch {
+            _uiState.value = AuthUiState(isLoading = true, errorMessage = null)
+            try {
+                val response = repository.register(
+                    RegisterRequest(name, email, password, passwordConfirmation)
+                )
+                if (response.isSuccessful && response.body()?.message == "success") {
+                    response.body()?.let { authResponse ->
+                        SessionManager.saveLoginSession(
+                            context = context,
+                            userId = authResponse.user.id,
+                            token = authResponse.token
+                        )
+                        _uiState.value = AuthUiState(
+                            isLoading = false,
+                            successMessage = authResponse.message
+                        )
+                    }
+                } else {
+                    val errorMessage = try {
+                        response.errorBody()?.string() ?: "Gagal registrasi"
+                    } catch (e: Exception) {
+                        "Gagal registrasi: ${e.message}"
+                    }
+                    _uiState.value = AuthUiState(
+                        isLoading = false,
+                        errorMessage = errorMessage
+                    )
+                }
+            } catch (e: IOException) {
+                _uiState.value = AuthUiState(
+                    isLoading = false,
+                    errorMessage = "Error jaringan: ${e.message}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState(
+                    isLoading = false,
+                    errorMessage = "Error: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun clearMessages() {
+        _uiState.value = AuthUiState(isLoading = false, errorMessage = null, successMessage = null)
     }
 }

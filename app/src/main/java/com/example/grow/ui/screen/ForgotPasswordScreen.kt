@@ -25,33 +25,43 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.grow.ui.screen.Screen
 import com.example.grow.ui.theme.PoppinsFamily
 import com.example.grow.ui.theme.GROWTheme
+import com.example.grow.viewmodel.ForgotPasswordViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForgotPasswordScreen(
     navController: NavHostController,
-    onBackClick: () -> Unit = {},
-    onSubmitClick: (String) -> Unit = {}
+    viewModel: ForgotPasswordViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var email by remember { mutableStateOf("") }
     var isEmailValid by remember { mutableStateOf(true) }
 
-    // Warna-warna yang digunakan
+    // Warna
     val lightBlue = Color(0xFF47A9FF)
     val darkBlue = Color(0xFF1A73E8)
     val lighterBlue = Color(0xFF63B3FF)
     val errorColor = Color(0xFFD32F2F)
 
-    // Gradient untuk background dengan animasi
+    // Gradient
     val gradient = Brush.verticalGradient(
         colors = listOf(lighterBlue, lightBlue),
         startY = 0f,
         endY = 1000f
     )
+
+    // Tangani keberhasilan
+    LaunchedEffect(uiState.successMessage) {
+        if (uiState.successMessage == "Kode reset telah dikirim ke email Anda.") {
+            navController.navigate("verification_code/$email")
+            viewModel.clearMessages()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -232,7 +242,7 @@ fun ForgotPasswordScreen(
                             if (!isEmailValid && email.isNotEmpty()) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "• Please enter a valid email",
+                                    text = "• Masukkan email yang valid",
                                     color = errorColor,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
@@ -291,8 +301,17 @@ fun ForgotPasswordScreen(
                                 focusedContainerColor = Color(0xFFF8FAFD)
                             ),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                            isError = !isEmailValid && email.isNotEmpty()
+                            isError = !isEmailValid && email.isNotEmpty() || uiState.errorMessage != null
                         )
+
+                        if (uiState.errorMessage != null) {
+                            Text(
+                                text = uiState.errorMessage!!,
+                                color = errorColor,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -301,7 +320,7 @@ fun ForgotPasswordScreen(
                     Button(
                         onClick = {
                             if (email.isNotEmpty() && isEmailValid) {
-                                onSubmitClick(email)
+                                viewModel.sendForgotPassword(email)
                             }
                         },
                         modifier = Modifier

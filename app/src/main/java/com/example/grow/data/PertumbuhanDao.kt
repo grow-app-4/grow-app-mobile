@@ -64,7 +64,6 @@ interface PertumbuhanDao {
 """)
     suspend fun getTanggalPencatatanTerbaru(idAnak: Int): String?
 
-
     @Query("DELETE FROM pertumbuhan")
     suspend fun deleteAllPertumbuhan()
 
@@ -76,17 +75,6 @@ interface PertumbuhanDao {
 
     @Query("DELETE FROM detail_pertumbuhan WHERE idPertumbuhan = :idPertumbuhan")
     suspend fun deleteDetailsByPertumbuhanId(idPertumbuhan: Int)
-
-    @Query("""
-    SELECT dp.idPertumbuhan, dp.nilai, p.tanggalPencatatan 
-    FROM detail_pertumbuhan dp
-    INNER JOIN pertumbuhan p ON dp.idPertumbuhan = p.idPertumbuhan
-    WHERE p.idAnak = :idAnak AND dp.idJenis = :idJenis
-""")
-    suspend fun getDetailPertumbuhanWithTanggal(
-        idAnak: Int,
-        idJenis: Int
-    ): List<DetailWithTanggal>
 
     @Transaction
     @Query("SELECT * FROM pertumbuhan WHERE idAnak = :idAnak ORDER BY tanggalPencatatan ASC")
@@ -112,6 +100,7 @@ interface PertumbuhanDao {
     @Query("DELETE FROM detail_pertumbuhan WHERE idPertumbuhan = :idPertumbuhan")
     suspend fun deleteDetailPertumbuhanById(idPertumbuhan: Int)
 
-
+    @Query("UPDATE pertumbuhan SET idApiPertumbuhan = :idApi WHERE idPertumbuhan = :idLocal")
+    suspend fun updateIdApiPertumbuhan(idLocal: Int, idApi: Int)
 }
 

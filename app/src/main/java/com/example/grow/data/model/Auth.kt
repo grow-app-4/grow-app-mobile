@@ -17,6 +17,7 @@ data class ForgotPasswordRequest(
 )
 
 data class AuthResponse(
+    val message: String,
     val token: String,
     val user: User
 )
@@ -34,4 +35,28 @@ data class MessageResponse(
 
 data class SimpleResponse(
     val message: String
+)
+
+data class VerifyResetCodeRequest(
+    val email: String,
+    val code: String
+)
+
+data class ResetPasswordRequest(
+    val email: String,
+    val reset_token: String,
+    val password: String,
+    val password_confirmation: String
+)
+
+
+data class VerifyResetCodeResponse(
+    val message: String,
+    val reset_token: String? = null
+)
+
+data class AuthUiState(
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val successMessage: String? = null
 )

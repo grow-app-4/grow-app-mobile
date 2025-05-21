@@ -12,5 +12,6 @@ class AuthRepository @Inject constructor(
     suspend fun logout(token: String) = api.logout("Bearer $token")
     suspend fun getUser(token: String) = api.getUser("Bearer $token")
     suspend fun forgotPassword(request: ForgotPasswordRequest) = api.forgotPassword(request)
-
+    suspend fun verifyResetCode(request: VerifyResetCodeRequest) = api.verifyResetCode(request)
+    suspend fun resetPassword(request: ResetPasswordRequest) = api.resetPassword(request)
 }

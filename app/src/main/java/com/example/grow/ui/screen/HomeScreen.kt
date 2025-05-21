@@ -48,22 +48,23 @@ fun HomeScreen(
     val children by viewModel.children.collectAsState()
     val selectedChildIndex by viewModel.selectedChildIndex.collectAsState()
     val selectedChild = children.getOrNull(selectedChildIndex)
-
     val statusStunting by viewModel.statusStunting.collectAsState()
-    Log.d("HOME_SCREEN", "Status Stunting di UI: $statusStunting")
+    val isLoading by viewModel.isLoadingChildren.collectAsState()
+    val isEmptyChildren by viewModel.isEmptyChildren.collectAsState()
+    val scrollState = rememberScrollState()
+
+    Log.d("HOME_SCREEN", "userId: $userId, children: $children, selectedChild: $selectedChild, statusStunting: $statusStunting")
 
     LaunchedEffect(userId) {
         viewModel.loadChildren(userId)
     }
 
     LaunchedEffect(selectedChild?.idAnak) {
-        selectedChild?.idAnak?.let {
-            viewModel.loadStatusStunting(it)
-            viewModel.loadLatestPertumbuhan(it)
+        selectedChild?.idAnak?.let { idAnak ->
+            viewModel.loadLatestPertumbuhan(idAnak)
+            viewModel.loadStatusStunting(idAnak)
         }
     }
-
-    val scrollState = rememberScrollState()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -74,60 +75,85 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues) // For handling the insets of Scaffold
+                    .padding(paddingValues)
             ) {
-                // Content area with scrolling
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                ) {
-                    // Child profile header with white background
-                    ChildProfileHeader(
-                        navController = navController,
-                        viewModel = viewModel,
-                        children = children,
-                        selectedChild = selectedChild,
-                        onChildChanged = { selectedIndex ->
-                            viewModel.selectChild(selectedIndex)
-                        },
-                        userId
-                    )
+                if (isLoading) {
+                    // Show loading indicator while data is being fetched
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = BiruPrimer,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                    ) {
+                        // Child profile header
+                        ChildProfileHeader(
+                            navController = navController,
+                            viewModel = viewModel,
+                            children = children,
+                            selectedChild = selectedChild,
+                            onChildChanged = { selectedIndex ->
+                                viewModel.selectChild(selectedIndex)
+                            },
+                            userId = userId
+                        )
 
-                    // Blue background container for the cards
-                    selectedChild?.idAnak?.let { idAnak ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    BiruMudaMain,
-                                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-                                )
-                        ) {
-                            Column(
+                        // Blue background container for cards
+                        selectedChild?.idAnak?.let { idAnak ->
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 20.dp)
+                                    .background(
+                                        BiruMudaMain,
+                                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                                    )
                             ) {
-                                GrowthDataCard(viewModel = viewModel, idAnak = idAnak)
-                                GrowthChartCard(navController = navController, viewModel = viewModel, anak = selectedChild)
-                                AnalysisResultCard(statusStunting = statusStunting)
-
-                                // Add spacing at the bottom
-                                Spacer(modifier = Modifier.height(80.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 20.dp)
+                                ) {
+                                    GrowthDataCard(viewModel = viewModel, idAnak = idAnak)
+                                    GrowthChartCard(navController = navController, viewModel = viewModel, anak = selectedChild)
+                                    AnalysisResultCard(statusStunting = statusStunting)
+                                    Spacer(modifier = Modifier.height(80.dp))
+                                }
+                            }
+                        } ?: run {
+                            // Show placeholder when no child is selected
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Tambah profil anak untuk melihat data pertumbuhan.",
+                                    style = Typography.bodyMedium,
+                                    color = TextColor,
+                                    textAlign = TextAlign.Center
+                                )
                             }
                         }
                     }
-                }
 
-                // Floating Button di posisi bawah layar
-                ButtonTambahPertumbuhan(
-                    selectedChildId = selectedChild?.idAnak,
-                    onClick = { idAnak ->
-                        navController.navigate(Screen.InputDataPertumbuhan.createRoute(idAnak))
-                    },
-                    scrollState = scrollState
-                )
+                    // Floating button for adding growth data
+                    selectedChild?.idAnak?.let { idAnak ->
+                        ButtonTambahPertumbuhan(
+                            selectedChildId = idAnak,
+                            onClick = { navController.navigate(Screen.InputDataPertumbuhan.createRoute(idAnak)) },
+                            scrollState = scrollState
+                        )
+                    }
+                }
             }
         }
     )
@@ -651,6 +677,18 @@ fun GrowthHistoryContent(
     onEdit: (GrowthHistoryItem) -> Unit,
     onDelete: (GrowthHistoryItem) -> Unit
 ) {
+    // State untuk mengelola dialog konfirmasi
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var itemToDelete by remember { mutableStateOf<GrowthHistoryItem?>(null) }
+
+    // State lokal untuk daftar pertumbuhan, memungkinkan pembaruan langsung
+    var localGrowthHistory by remember { mutableStateOf(growthHistoryData) }
+
+    // Sinkronkan localGrowthHistory dengan growthHistoryData ketika data berubah
+    LaunchedEffect(growthHistoryData) {
+        localGrowthHistory = growthHistoryData
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -703,7 +741,7 @@ fun GrowthHistoryContent(
         }
 
         // Table rows
-        growthHistoryData.forEach { item ->
+        localGrowthHistory.forEach { item ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -761,7 +799,10 @@ fun GrowthHistoryContent(
                         )
                     }
                     IconButton(
-                        onClick = { onDelete(item) },
+                        onClick = {
+                            itemToDelete = item
+                            showDeleteDialog = true
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -777,6 +818,60 @@ fun GrowthHistoryContent(
             Divider(
                 color = TextColor.copy(alpha = 0.1f),
                 thickness = 1.dp
+            )
+        }
+
+        // Dialog konfirmasi penghapusan
+        if (showDeleteDialog && itemToDelete != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    showDeleteDialog = false
+                    itemToDelete = null
+                },
+                title = {
+                    Text(
+                        text = "Konfirmasi Hapus",
+                        style = Typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = TextColor
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Apakah Anda yakin ingin menghapus data pertumbuhan untuk tanggal ${itemToDelete?.date}?",
+                        style = Typography.bodyMedium,
+                        color = TextColor
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            itemToDelete?.let { item ->
+                                // Hapus item dari daftar lokal untuk pembaruan UI langsung
+                                localGrowthHistory = localGrowthHistory.filter { it.idPertumbuhan != item.idPertumbuhan }
+                                // Panggil fungsi delete dari ViewModel
+                                onDelete(item)
+                            }
+                            showDeleteDialog = false
+                            itemToDelete = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                    ) {
+                        Text("Hapus")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            itemToDelete = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = BiruPrimer)
+                    ) {
+                        Text("Batal")
+                    }
+                },
+                containerColor = BackgroundColor,
+                shape = RoundedCornerShape(16.dp)
             )
         }
     }

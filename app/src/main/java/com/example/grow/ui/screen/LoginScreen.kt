@@ -1,3 +1,5 @@
+package com.example.grow.ui.screen
+
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -43,6 +45,7 @@ fun LoginScreen(
     anakViewModel: AnakViewModel = hiltViewModel(),
     pertumbuhanViewModel: PertumbuhanViewModel = hiltViewModel()
 ) {
+    // State declarations
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -51,28 +54,30 @@ fun LoginScreen(
     val context = LocalContext.current
     val isLoggedIn by remember { mutableStateOf(SessionManager.isLoggedIn(context)) }
 
-    // Warna-warna yang digunakan
-    val lightBlue = Color(0xFF47A9FF)
-    val darkBlue = Color(0xFF1A73E8)
-    val lighterBlue = Color(0xFF63B3FF)
+    // Theme colors
+    val primaryColor = Color(0xFF1A73E8)
+    val secondaryColor = Color(0xFF47A9FF)
+    val lightColor = Color(0xFF63B3FF)
+    val backgroundColor = Color(0xFFF7F9FC)
+    val textPrimaryColor = Color(0xFF303030)
+    val textSecondaryColor = Color(0xFF757575)
 
-    // Gradient untuk background
+    // Gradient background
     val gradient = Brush.verticalGradient(
-        colors = listOf(lighterBlue, lightBlue),
+        colors = listOf(lightColor, secondaryColor),
         startY = 0f,
         endY = 1000f
     )
 
+    // Login state effect
     LaunchedEffect(Unit) {
-        Log.d("Navigation", "Rendered LoginScreen2, isLoggedIn = $isLoggedIn")
         if (!isLoggedIn) {
-            // Reset login state saat layar dirender setelah logout
             viewModel.logout(context)
         }
     }
 
+    // Handle login state changes
     LaunchedEffect(loginState) {
-        Log.d("LoginScreen", "loginState = $loginState")
         when (val state = loginState) {
             is Resource.Loading -> {
                 loginMessage = "Logging in..."
@@ -81,22 +86,24 @@ fun LoginScreen(
                 if (SessionManager.isLoggedIn(context)) {
                     loginMessage = "Login successful"
                     val userId = state.data?.user?.id
-                    if (userId != null) {
-                        SessionManager.saveLoginSession(context, userId)
+                    val token = state.data?.token
+
+                    if (userId != null && token != null) {
+                        SessionManager.saveLoginSession(context, userId, token)
                     }
-                    // Lakukan sinkronisasi hanya jika login berhasil
+
                     try {
-                        Log.d("LoginScreen", "Memulai sinkronisasi data")
+                        // Synchronize data on successful login
                         grafikViewModel.syncStandarPertumbuhan()
-                        anakViewModel.fetchAllAnakFromApi()
+                        anakViewModel.fetchAllAnakFromApi(context)
                         pertumbuhanViewModel.loadDataAwal()
-                        Log.d("LoginScreen", "Sinkronisasi data selesai")
                     } catch (e: CancellationException) {
-                        Log.d("LoginScreen", "Sinkronisasi dibatalkan: ${e.message}")
+                        Log.d("LoginScreen", "Synchronization canceled: ${e.message}")
                     } catch (e: Exception) {
-                        Log.e("LoginScreen", "Error saat sinkronisasi: ${e.message}")
+                        Log.e("LoginScreen", "Error during synchronization: ${e.message}")
                     }
-                    // Navigasi ke HomeScreen
+
+                    // Navigate to Home
                     navController.navigate(Screen.Home.route) {
                         popUpTo(navController.graph.id) { inclusive = true }
                         launchSingleTop = true
@@ -109,6 +116,7 @@ fun LoginScreen(
         }
     }
 
+    // Main UI
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -118,197 +126,305 @@ fun LoginScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logo dan nama aplikasi
-            Box(
+            // App logo section
+            LogoSection()
+
+            // Login form card
+            LoginCard(
+                email = email,
+                onEmailChange = { email = it },
+                password = password,
+                onPasswordChange = { password = it },
+                passwordVisible = passwordVisible,
+                onPasswordVisibilityChange = { passwordVisible = it },
+                onLoginClick = { viewModel.login(email, password, context) },
+                onForgotPasswordClick = { navController.navigate("forgot_password") },
+                onRegisterClick = { navController.navigate("register") },
+                primaryColor = primaryColor,
+                backgroundColor = backgroundColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun LogoSection() {
+    Box(
+        modifier = Modifier
+            .fillMaxHeight(0.4f)
+            .fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "grow.",
+                color = Color.White,
+                fontSize = 64.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = PoppinsFamily
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Solusi Cerdas Deteksi\nDini Stunting",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                fontFamily = PoppinsFamily,
+                lineHeight = 28.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoginCard(
+    email: String,
+    onEmailChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    passwordVisible: Boolean,
+    onPasswordVisibilityChange: (Boolean) -> Unit,
+    onLoginClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit,
+    onRegisterClick: () -> Unit,
+    primaryColor: Color,
+    backgroundColor: Color
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 28.dp)
+                .padding(top = 36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Login Header
+            LoginHeader()
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Email field
+            InputField(
+                value = email,
+                onValueChange = onEmailChange,
+                label = "Email",
+                placeholder = "Enter your email",
+                leadingIcon = Icons.Outlined.Email,
+                keyboardType = KeyboardType.Email,
+                primaryColor = primaryColor,
+                backgroundColor = backgroundColor
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Password field
+            PasswordField(
+                value = password,
+                onValueChange = onPasswordChange,
+                passwordVisible = passwordVisible,
+                onPasswordVisibilityChange = onPasswordVisibilityChange,
+                primaryColor = primaryColor,
+                backgroundColor = backgroundColor
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Login button
+            Button(
+                onClick = onLoginClick,
                 modifier = Modifier
-                    .fillMaxHeight(0.45f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "grow.",
-                        color = Color.White,
-                        fontSize = 68.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = PoppinsFamily
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Solusi Cerdas Deteksi\nDini Stunting",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                        fontFamily = PoppinsFamily,
-                        lineHeight = 28.sp
-                    )
-                }
+                Text(
+                    text = "Login",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = PoppinsFamily
+                )
             }
 
-            // Kartu login
-            Card(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = 36.dp, topEnd = 36.dp)),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Action links
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 28.dp)
-                        .padding(top = 40.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                TextButton(onClick = onForgotPasswordClick) {
                     Text(
-                        text = "Login",
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.DarkGray,
+                        text = "Forgot password?",
+                        color = primaryColor,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
                         fontFamily = PoppinsFamily
                     )
-                    Spacer(modifier = Modifier.height(15.dp))
-                    Divider(
-                        modifier = Modifier.padding(horizontal = 32.dp),
-                        thickness = 1.dp,
-                        color = Color.LightGray.copy(alpha = 0.5f)
+                }
+
+                TextButton(onClick = onRegisterClick) {
+                    Text(
+                        text = "Register",
+                        color = primaryColor,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = PoppinsFamily
                     )
-                    Spacer(modifier = Modifier.height(30.dp))
-
-                    // Form Email
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = "Email",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.DarkGray,
-                            fontFamily = PoppinsFamily
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(60.dp),
-                            placeholder = {
-                                Text(
-                                    "Enter your email",
-                                    fontFamily = PoppinsFamily,
-                                    color = Color.Gray.copy(alpha = 0.6f)
-                                )
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Email,
-                                    contentDescription = "Email icon",
-                                    tint = darkBlue
-                                )
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color.LightGray.copy(alpha = 0.7f),
-                                focusedBorderColor = darkBlue,
-                                unfocusedContainerColor = Color(0xFFF7F9FC),
-                                focusedContainerColor = Color(0xFFF7F9FC)
-                            ),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Form Password
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = "Password",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.DarkGray,
-                            fontFamily = PoppinsFamily
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(60.dp),
-                            placeholder = {
-                                Text(
-                                    "Enter your password",
-                                    fontFamily = PoppinsFamily,
-                                    color = Color.Gray.copy(alpha = 0.6f)
-                                )
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Lock,
-                                    contentDescription = "Password icon",
-                                    tint = darkBlue
-                                )
-                            },
-                            trailingIcon = {
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(
-                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                        tint = darkBlue
-                                    )
-                                }
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = Color.LightGray.copy(alpha = 0.7f),
-                                focusedBorderColor = darkBlue,
-                                unfocusedContainerColor = Color(0xFFF7F9FC),
-                                focusedContainerColor = Color(0xFFF7F9FC)
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(25.dp))
-
-                    // Tombol Login
-                    Button(
-                        onClick = { viewModel.login(email, password, context) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(58.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = darkBlue),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 8.dp)
-                    ) {
-                        Text(
-                            text = "Login",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = PoppinsFamily
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(5.dp))
-
-                    // Forgot Password
-                    TextButton(onClick = { navController.navigate("forgot_password") }) {
-                        Text(
-                            text = "Forgot password?",
-                            color = darkBlue,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontFamily = PoppinsFamily
-                        )
-                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LoginHeader() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = "Login",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.DarkGray,
+            fontFamily = PoppinsFamily
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Divider(
+            modifier = Modifier.padding(horizontal = 32.dp),
+            thickness = 1.dp,
+            color = Color.LightGray.copy(alpha = 0.5f)
+        )
+    }
+}
+
+@Composable
+private fun InputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    keyboardType: KeyboardType,
+    primaryColor: Color,
+    backgroundColor: Color
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.DarkGray,
+            fontFamily = PoppinsFamily
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            placeholder = {
+                Text(
+                    placeholder,
+                    fontFamily = PoppinsFamily,
+                    color = Color.Gray.copy(alpha = 0.6f)
+                )
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            leadingIcon = {
+                Icon(
+                    imageVector = leadingIcon,
+                    contentDescription = "$label icon",
+                    tint = primaryColor
+                )
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = Color.LightGray.copy(alpha = 0.7f),
+                focusedBorderColor = primaryColor,
+                unfocusedContainerColor = backgroundColor,
+                focusedContainerColor = backgroundColor
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
+        )
+    }
+}
+
+@Composable
+private fun PasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    passwordVisible: Boolean,
+    onPasswordVisibilityChange: (Boolean) -> Unit,
+    primaryColor: Color,
+    backgroundColor: Color
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Password",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.DarkGray,
+            fontFamily = PoppinsFamily
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            placeholder = {
+                Text(
+                    "Enter your password",
+                    fontFamily = PoppinsFamily,
+                    color = Color.Gray.copy(alpha = 0.6f)
+                )
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.Lock,
+                    contentDescription = "Password icon",
+                    tint = primaryColor
+                )
+            },
+            trailingIcon = {
+                IconButton(onClick = { onPasswordVisibilityChange(!passwordVisible) }) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                        tint = primaryColor
+                    )
+                }
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = Color.LightGray.copy(alpha = 0.7f),
+                focusedBorderColor = primaryColor,
+                unfocusedContainerColor = backgroundColor,
+                focusedContainerColor = backgroundColor
+            )
+        )
     }
 }

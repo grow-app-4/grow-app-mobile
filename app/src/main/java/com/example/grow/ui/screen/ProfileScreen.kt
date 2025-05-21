@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Edit
@@ -16,182 +17,259 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.example.grow.ui.viewmodel.ProfileUpdateViewModel
 import com.example.grow.util.SessionManager
 import com.example.grow.viewmodel.AuthViewModel
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavHostController, viewModel: AuthViewModel = hiltViewModel()) {
+fun ProfileScreen(navController: NavHostController, viewModel: AuthViewModel = hiltViewModel(), profileViewModel: ProfileUpdateViewModel = hiltViewModel()) {
     val context = LocalContext.current
-    var showDialog by remember { mutableStateOf(false) }
+    val userId = SessionManager.getUserId(context)
+    val token = SessionManager.getToken(context)
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
-    if (showDialog) {
-        Log.d("ProfileScreen", "Showing logout dialog")
+    val user by viewModel.getUserById(userId).collectAsState(initial = null)
+
+    LaunchedEffect(userId, token) {
+        if (token != null && userId != 0) {
+            profileViewModel.loadUserData(token, userId)
+        }
+    }
+
+    // Logout confirmation dialog
+    if (showLogoutDialog) {
         AlertDialog(
-            onDismissRequest = {
-                Log.d("ProfileScreen", "Dialog dismissed")
-                showDialog = false
-            },
-            title = { Text("Logout") },
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout", fontWeight = FontWeight.Bold) },
             text = { Text("Apakah Anda yakin ingin logout?") },
             confirmButton = {
-                Button(onClick = {
-                    Log.d("ProfileScreen", "Confirm logout clicked, isLoggedIn = ${SessionManager.isLoggedIn(context)}")
-                    viewModel.logout(context)
-                    Log.d("ProfileScreen", "After logout, isLoggedIn = ${SessionManager.isLoggedIn(context)}")
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                    navController.backQueue.forEachIndexed { index, entry ->
-                        Log.d("ProfileScreen", "BackStack[$index]: ${entry.destination.route}")
-                    }
-                    showDialog = false
-                }) {
+                Button(
+                    onClick = {
+                        viewModel.logout(context)
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                        showLogoutDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                ) {
                     Text("Ya")
                 }
             },
             dismissButton = {
-                Button(onClick = {
-                    Log.d("ProfileScreen", "Cancel logout clicked")
-                    showDialog = false
-                }) {
+                OutlinedButton(
+                    onClick = { showLogoutDialog = false }
+                ) {
                     Text("Tidak")
                 }
             }
         )
     }
 
-    Scaffold { paddingValues ->
+    Scaffold(
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 20.dp),
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFD6E7FF))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        modifier = Modifier
-                            .size(60.dp)
-                            .align(Alignment.Center),
-                        tint = Color(0xFF5C95FF)
-                    )
-                }
+            ProfileHeader(
+                name = user?.name,
+                email = user?.email,
+                onEditClick = { navController.navigate(Screen.ProfileUpdate.route) }
+            )
 
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-                Text(
-                    text = "Wulan bin Fulan",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black
+            ProfileSection(
+                title = "Profil",
+                items = listOf(
+                    ProfileItem("Kehamilan") { /* Navigate to pregnancy info */ },
+                    ProfileItem("Data Anak") {
+                        if (userId > 0) {
+                            navController.navigate(Screen.ListDataAnak.createRoute(userId))
+                        } else {
+                            Log.e("ProfileScreen", "Invalid userId: $userId")
+                        }
+                    }
                 )
+            )
 
-                Text(
-                    text = "wulan@example.com",
-                    fontSize = 16.sp,
-                    color = Color(0xFF2196F3)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ProfileSection(
+                title = "Pengaturan",
+                items = listOf(
+                    ProfileItem("Favorit") { navController.navigate(Screen.BookmarkResep.route) },
+                    ProfileItem("Keluar") { showLogoutDialog = true }
                 )
-
-                IconButton(
-                    onClick = { /* Handle edit profile */ },
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Profile",
-                        tint = Color(0xFF2196F3)
-                    )
-                }
-            }
-
-            Text(
-                text = "Profil",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            ProfileMenuItem(
-                title = "Kehamilan",
-                onClick = { /* Navigate to pregnancy info */ }
-            )
-
-            ProfileMenuItem(
-                title = "Data Anak",
-                onClick = { /* Navigate to child data */ }
-            )
-
-            Text(
-                text = "Pengaturan",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            ProfileMenuItem(
-                title = "Favorit",
-                onClick = { /* Navigate to favorites */ }
-            )
-
-            ProfileMenuItem(
-                title = "Keluar",
-                onClick = {
-                    Log.d("ProfileScreen", "Keluar menu item clicked")
-                    showDialog = true
-                }
             )
         }
     }
 }
 
 @Composable
-fun ProfileMenuItem(
-    title: String,
-    onClick: () -> Unit
+private fun ProfileHeader(
+    name: String?,
+    email: String?,
+    onEditClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+            .padding(top = 24.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        onClick = onClick
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(vertical = 24.dp, horizontal = 16.dp),
         ) {
+            Box(
+                modifier = Modifier
+                    .size(110.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFD6E7FF))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile",
+                    modifier = Modifier
+                        .size(65.dp)
+                        .align(Alignment.Center),
+                    tint = Color(0xFF5C95FF)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
+                text = name ?: "Memuat nama...",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.Black
             )
 
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = "Navigate",
-                tint = Color.Gray
+            Text(
+                text = email ?: "Memuat email...",
+                fontSize = 16.sp,
+                color = Color(0xFF2196F3),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(
+                    onClick = onEditClick,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFEBF5FF))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Profile",
+                        tint = Color(0xFF2196F3),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+data class ProfileItem(val title: String, val onClick: () -> Unit)
+
+@Composable
+private fun ProfileSection(
+    title: String,
+    items: List<ProfileItem>
+) {
+    Text(
+        text = title,
+        fontSize = 18.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(bottom = 12.dp),
+        color = Color(0xFF333333)
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            items.forEachIndexed { index, item ->
+                ProfileMenuItem(
+                    title = item.title,
+                    onClick = item.onClick,
+                    showDivider = index < items.size - 1
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileMenuItem(
+    title: String,
+    onClick: () -> Unit,
+    showDivider: Boolean = true
+) {
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF333333)
+                )
+
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = "Navigate",
+                    tint = Color(0xFF9E9E9E),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            if (showDivider) {
+                Divider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = Color(0xFFEEEEEE),
+                    thickness = 1.dp
+                )
+            }
         }
     }
 }

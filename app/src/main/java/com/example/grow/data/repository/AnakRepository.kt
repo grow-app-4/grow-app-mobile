@@ -1,5 +1,6 @@
 package com.example.grow.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.example.grow.data.AnakDao
 import com.example.grow.data.remote.AnakApiService
@@ -9,6 +10,7 @@ import com.example.grow.data.DetailPertumbuhanEntity
 import com.example.grow.data.PertumbuhanDao
 import com.example.grow.data.PertumbuhanEntity
 import com.example.grow.data.model.AnakRequest
+import com.example.grow.util.SessionManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.*
 import java.text.SimpleDateFormat
@@ -27,11 +29,15 @@ class AnakRepository @Inject constructor(
     fun getAllAnak(): Flow<List<AnakEntity>> = anakDao.getAllAnak()
 
     // Mengambil data dari API,
-    suspend fun fetchAllAnakFromApi() {
+    suspend fun fetchAllAnakFromApi(context: Context) {
         val response = anakApiService.getAllAnak()
         if (response.isSuccessful && response.body() != null) {
             response.body()?.data?.let { anakList ->
-                val entities = anakList.map { anak ->
+                val userId = SessionManager.getUserId(context)
+
+                val filteredAnakList = anakList.filter { it.idUser == userId }
+
+                val entities = filteredAnakList.map { anak ->
                     AnakEntity(
                         idAnak = anak.idAnak,
                         idUser = anak.idUser,
@@ -40,7 +46,9 @@ class AnakRepository @Inject constructor(
                         tanggalLahir = anak.tanggalLahir.toString()
                     )
                 }
+
                 anakDao.insertAllAnak(entities)
+
                 val anakDataFromRoom = anakDao.getAllAnak().firstOrNull()
                 Log.d("AnakRepository", "Data anak dari Room setelah disimpan: $anakDataFromRoom")
             }
@@ -175,7 +183,6 @@ class AnakRepository @Inject constructor(
             )
         )
     }
-
 
     suspend fun deleteAnak(anak: AnakEntity) {
         anakDao.deleteAnak(anak)
