@@ -40,16 +40,11 @@ import com.example.grow.ui.theme.PoppinsFamily
 import com.example.grow.ui.theme.GROWTheme
 import com.example.grow.viewmodel.ForgotPasswordViewModel
 
-// Screen 2: Verification Code Screen
+// Screen 1: Password Reset Success Screen
 @Composable
-fun VerificationCodeScreen(
-    email: String,
-    navController: NavHostController,
-    viewModel: ForgotPasswordViewModel = hiltViewModel()
+fun PasswordResetSuccessScreen(
+    navController: NavHostController
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var verificationCode = remember { mutableStateOf(List(5) { "" }) }
-
     // Warna
     val lightBlue = Color(0xFF47A9FF)
     val darkBlue = Color(0xFF1A73E8)
@@ -61,14 +56,6 @@ fun VerificationCodeScreen(
         startY = 0f,
         endY = 1000f
     )
-
-    // Tangani keberhasilan
-    LaunchedEffect(uiState.successMessage) {
-        if (uiState.successMessage == "Kode berhasil diverifikasi." && uiState.resetToken != null) {
-            navController.navigate("reset_password/$email/${uiState.resetToken}")
-            viewModel.clearMessages()
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -123,7 +110,7 @@ fun VerificationCodeScreen(
                 }
             }
 
-            // Card containing the verification code input
+            // Card containing the success message
             Card(
                 modifier = Modifier
                     .fillMaxSize()
@@ -147,23 +134,7 @@ fun VerificationCodeScreen(
                         .padding(top = 36.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    IconButton(
-                        onClick = { navController.navigate(Screen.ForgotPassword.route) },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                color = Color(0xFFF0F5FF),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = darkBlue,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
+                    // Header
                     Text(
                         text = "Forgot Password",
                         fontSize = 30.sp,
@@ -182,70 +153,46 @@ fun VerificationCodeScreen(
 
                     Spacer(modifier = Modifier.height(48.dp))
 
-                    // Email instructions
-                    Text(
-                        text = "Check your email at",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF2D3142),
-                        fontFamily = PoppinsFamily,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Text(
-                        text = email,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = darkBlue,
-                        fontFamily = PoppinsFamily,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "for a password reset link.",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF2D3142),
-                        fontFamily = PoppinsFamily,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(48.dp))
-
-                    // Verification code input fields
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        for (i in 0 until 5) {
-                            VerificationCodeDigit(
-                                value = verificationCode.value[i],
-                                onValueChange = { newValue ->
-                                    if (newValue.length <= 1) {
-                                        val newList = verificationCode.value.toMutableList()
-                                        newList[i] = newValue
-                                        verificationCode.value = newList
-                                    }
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 6.dp)
+                    // Success icon with circular background
+                    Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .background(
+                                color = lightBlue.copy(alpha = 0.1f),
+                                shape = CircleShape
                             )
-                        }
+                            .border(
+                                width = 2.dp,
+                                color = lightBlue.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Success",
+                            tint = darkBlue,
+                            modifier = Modifier.size(60.dp)
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(28.dp))
+                    Spacer(modifier = Modifier.height(40.dp))
 
-                    // Verification button
+                    // Success message
+                    Text(
+                        text = "Password Reset Successful",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2D3142),
+                        fontFamily = PoppinsFamily,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Button to go to login
                     Button(
-                        onClick = {
-                            val code = verificationCode.value.joinToString("")
-                            if (code.length == 5) {
-                                viewModel.verifyResetCode(email, code)
-                            }
-                        },
+                        onClick = { navController.navigate(Screen.Login.route) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(60.dp)
@@ -261,19 +208,10 @@ fun VerificationCodeScreen(
                         contentPadding = PaddingValues(vertical = 16.dp)
                     ) {
                         Text(
-                            text = if (uiState.isLoading) "Memverifikasi..." else "Verifikasi Kode",
+                            text = "Kembali ke Login",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = PoppinsFamily
-                        )
-                    }
-
-                    if (uiState.errorMessage != null) {
-                        Text(
-                            text = uiState.errorMessage!!,
-                            color = Color(0xFFD32F2F),
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(top = 8.dp)
                         )
                     }
 
@@ -282,57 +220,4 @@ fun VerificationCodeScreen(
             }
         }
     }
-}
-
-@Composable
-fun VerificationCodeDigit(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val lightGray = Color(0xFFEEEEEE)
-    val darkBlue = Color(0xFF1A73E8)
-
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = TextStyle(
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF2D3142),
-            fontFamily = PoppinsFamily,
-            textAlign = TextAlign.Center
-        ),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = modifier
-            .size(70.dp)
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = Color.Black.copy(alpha = 0.1f)
-            )
-            .clip(RoundedCornerShape(16.dp))
-            .background(lightGray.copy(alpha = 0.3f)),
-        decorationBox = { innerTextField ->
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .padding(8.dp)
-                    .fillMaxSize()
-            ) {
-                // Show the dash when empty
-                if (value.isEmpty()) {
-                    Text(
-                        text = "—",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Gray.copy(alpha = 0.5f),
-                        textAlign = TextAlign.Center
-                    )
-                }
-                innerTextField()
-            }
-        }
-    )
 }

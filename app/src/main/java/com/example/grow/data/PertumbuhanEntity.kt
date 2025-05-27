@@ -8,7 +8,8 @@ data class PertumbuhanEntity(
     @PrimaryKey(autoGenerate = true) val idPertumbuhan: Int,
     val idAnak: Int,
     val tanggalPencatatan: String,
-    val statusStunting: String
+    val statusStunting: String,
+    val idApiPertumbuhan: Int? = null
 )
 
 data class GrowthData(

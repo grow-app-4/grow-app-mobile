@@ -1,5 +1,8 @@
 package com.example.grow.ui.viewmodel
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -44,6 +47,27 @@ class PertumbuhanViewModel @Inject constructor(
     private val _selectedChildIndex = MutableStateFlow(0)
     val selectedChildIndex: StateFlow<Int> = _selectedChildIndex
 
+    val isLoadingChildren = MutableStateFlow(true)
+    val isEmptyChildren = MutableStateFlow(false)
+
+    fun loadChildren(userId: Int) {
+        viewModelScope.launch {
+            isLoadingChildren.value = true
+            try {
+                val result = repository.getChildrenByUserId(userId)
+                _children.value = result
+                isEmptyChildren.value = result.isEmpty()
+                _selectedChildIndex.value = 0
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Error loading children: ${e.message}")
+                _children.value = emptyList()
+                isEmptyChildren.value = true
+            } finally {
+                isLoadingChildren.value = false
+            }
+        }
+    }
+
     val selectedChild: StateFlow<AnakEntity?> = combine(children, selectedChildIndex) { anakList, index ->
         anakList.getOrNull(index)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -69,14 +93,6 @@ class PertumbuhanViewModel @Inject constructor(
     }
 
     val childAges = MutableStateFlow<Map<Int, String>>(emptyMap())
-
-    fun loadChildren(userId: Int) {
-        viewModelScope.launch {
-            val anakList = repository.getChildrenByUserId(userId)
-            _children.value = anakList
-            calculateChildAges(anakList)
-        }
-    }
 
     private fun calculateChildAges(children: List<AnakEntity>) {
         val ages = children.associate { anak ->
@@ -183,37 +199,122 @@ class PertumbuhanViewModel @Inject constructor(
             Log.d("CREATE_PERTUMBUHAN", "Mulai create pertumbuhan")
             try {
                 Log.d("CREATE_PERTUMBUHAN", "Mengirim data ke API: $request")
-                val isSuccess = repository.createPertumbuhanToApi(request)
+                val idFromApi = repository.createPertumbuhanToApi(request)
 
-                if (isSuccess) {
-                    Log.d("CREATE_PERTUMBUHAN", "Upload ke API sukses, lanjut insert ke lokal")
+                // Simpan ke lokal dan dapatkan id lokal
+                val idLocal = repository.createPertumbuhanToLocal(localEntity, request, localJenis)
+                if (idLocal <= 0) {
+                    Log.e("CREATE_PERTUMBUHAN", "Gagal menyimpan ke lokal: ID lokal tidak valid ($idLocal)")
+                } else if (idFromApi != null) {
+                    Log.d("CREATE_PERTUMBUHAN", "Upload ke API sukses, ID dari API: $idFromApi")
+                    repository.updateIdApiPertumbuhan(idLocal, idFromApi)
                 } else {
-                    Log.w("CREATE_PERTUMBUHAN", "Upload ke API gagal (isSuccess = false), insert ke lokal tetap dilakukan")
+                    Log.w("CREATE_PERTUMBUHAN", "Upload ke API gagal (idFromApi = null)")
                 }
 
-                // Simpan ke lokal di kedua kondisi (API sukses atau gagal)
-                repository.createPertumbuhanToLocal(localEntity, request, localJenis)
-                Log.d("CREATE_PERTUMBUHAN", "Insert ke lokal selesai")
-
-                _saveSuccess.value = true // Notifikasi ke UI kalau sudah selesai
-
+                // Perbarui data pertumbuhan, data terbaru, dan status stunting
+                getPertumbuhanAnak(localEntity.idAnak)
+                loadLatestPertumbuhan(localEntity.idAnak)
+                loadStatusStunting(localEntity.idAnak)
+                _saveSuccess.value = true
             } catch (e: Exception) {
                 Log.e("CREATE_PERTUMBUHAN", "Exception saat create pertumbuhan: ${e.message}", e)
-
-                // Kalau error di API, tetap simpan ke lokal
-                try {
-                    Log.d("CREATE_PERTUMBUHAN", "Insert ke lokal karena error saat API call")
-                    repository.createPertumbuhanToLocal(localEntity, request, localJenis)
-                    _saveSuccess.value = true
-                } catch (localErr: Exception) {
-                    Log.e("CREATE_PERTUMBUHAN", "Gagal insert ke lokal: ${localErr.message}", localErr)
+                // Simpan ke lokal meskipun API gagal
+                val idLocal = repository.createPertumbuhanToLocal(localEntity, request, localJenis)
+                if (idLocal <= 0) {
+                    Log.e("CREATE_PERTUMBUHAN", "Gagal menyimpan ke lokal di catch block: ID lokal tidak valid ($idLocal)")
                 }
+                // Perbarui data pertumbuhan, data terbaru, dan status stunting
+                getPertumbuhanAnak(localEntity.idAnak)
+                loadLatestPertumbuhan(localEntity.idAnak)
+                loadStatusStunting(localEntity.idAnak)
+                _saveSuccess.value = true
             }
         }
     }
 
     fun resetSaveSuccess() {
         _saveSuccess.value = false
+    }
+
+    fun getAnakById(
+        anakId: Int,
+        userId: Int,
+        context: Context,
+        onSuccess: (AnakEntity) -> Unit,
+        onError: (Throwable) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val anak = anakRepository.getAnakById(anakId).firstOrNull()
+                if (anak != null && anak.idUser == userId) {
+                    Log.d("PertumbuhanViewModel", "Anak ditemukan: ${anak.namaAnak}")
+                    onSuccess(anak)
+                } else {
+                    throw Exception("Anak dengan ID $anakId tidak ditemukan atau tidak terkait dengan user")
+                }
+            } catch (e: Exception) {
+                Log.e("PertumbuhanViewModel", "Error mengambil anak: ${e.message}", e)
+                onError(e)
+            }
+        }
+    }
+
+    fun updateAnak(
+        anakId: Int,
+        nama: String,
+        tanggalLahir: String,
+        jenisKelamin: String,
+        userId: Int,
+        context: Context,
+        onSuccess: () -> Unit,
+        onError: (Throwable) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                if (!isValidInput(nama, tanggalLahir, jenisKelamin)) {
+                    throw IllegalArgumentException("Data tidak valid. Pastikan semua field diisi dengan benar.")
+                }
+                val isConnected = isNetworkConnected(context)
+                val anakEntity = AnakEntity(
+                    idAnak = anakId,
+                    idUser = userId,
+                    namaAnak = nama,
+                    tanggalLahir = tanggalLahir,
+                    jenisKelamin = jenisKelamin
+                )
+                anakRepository.updateAnak(anakEntity)
+                loadChildren(userId)
+                onSuccess()
+            } catch (e: Exception) {
+                Log.e("PertumbuhanViewModel", "Error memperbarui anak: ${e.message}", e)
+                onError(e)
+            }
+        }
+    }
+
+    private fun isValidInput(
+        nama: String,
+        tanggalLahir: String,
+        jenisKelamin: String
+    ): Boolean {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val birthDate = try {
+            LocalDate.parse(tanggalLahir, formatter)
+        } catch (e: Exception) {
+            return false
+        }
+        return nama.isNotBlank() &&
+                tanggalLahir.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) &&
+                jenisKelamin in listOf("L", "P") &&
+                birthDate.isBefore(LocalDate.now())
+    }
+
+    private fun isNetworkConnected(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+        return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
 
     fun updatePertumbuhan(
@@ -223,14 +324,17 @@ class PertumbuhanViewModel @Inject constructor(
         viewModelScope.launch {
             repository.updatePertumbuhanWithDetails(pertumbuhan, details)
             getPertumbuhanAnak(pertumbuhan.idAnak)
+            loadLatestPertumbuhan(pertumbuhan.idAnak)
+            loadStatusStunting(pertumbuhan.idAnak) // Tambahkan untuk memperbarui AnalysisResultCard
         }
     }
 
     fun deletePertumbuhan(idPertumbuhan: Int, idAnak: Int) {
         viewModelScope.launch {
             repository.deletePertumbuhan(idPertumbuhan)
-            getPertumbuhanAnak(idAnak)
+            getPertumbuhanAnak(idAnak) // Untuk memperbarui GrowthHistoryTable
+            loadLatestPertumbuhan(idAnak) // Untuk memperbarui GrowthDataCard
+            loadStatusStunting(idAnak) // Untuk memperbarui AnalysisResultCard
         }
     }
-
 }

@@ -42,7 +42,15 @@ fun MainScreen(
     val routesWithoutBottomBar = listOf(
         Screen.Login.route,
         "register",
-        "forgot_password"
+        "forgot_password",
+        "verification_code/{email}",
+        "reset_password/{email}/{resetToken}",
+        "password_reset_success",
+        "register",
+        "tambah_anak/{userId}",
+        "pertumbuhan/{idAnak}",
+        "pertumbuhan/{idAnak}/edit/{idPertumbuhan}",
+        "edit_anak/{userId}/{anakId}"
     )
 
     // Jalankan sinkronisasi hanya jika pengguna sudah login
@@ -52,7 +60,7 @@ fun MainScreen(
             grafikViewModel.syncStandarPertumbuhan()
             Log.d("MainScreen", "Done grafik")
 
-            anakViewModel.fetchAllAnakFromApi()
+            anakViewModel.fetchAllAnakFromApi(context)
             Log.d("MainScreen", "Done anak")
 
             pertumbuhanViewModel.loadDataAwal()

@@ -81,7 +81,6 @@ class PertumbuhanRepository @Inject constructor(
         }
     }
 
-    // Fungsi fallback buat data hardcoded
     private suspend fun insertDefaultJenisIfNeeded() {
         val hardcodedJenis = listOf(
             JenisPertumbuhanEntity(idJenis = 1, namaJenis = "Tinggi Badan"),
@@ -116,15 +115,13 @@ class PertumbuhanRepository @Inject constructor(
         entity: PertumbuhanEntity,
         request: PertumbuhanRequest,
         localJenis: List<JenisPertumbuhanEntity>
-    ) {
+    ): Int {
         Log.d("LOCAL_INSERT", "Memulai penyimpanan data pertumbuhan ke lokal...")
 
-        // 2. Simpan entitas pertumbuhan dan ambil ID yang di-generate
         Log.d("LOCAL_INSERT", "Menyimpan entitas pertumbuhan: $entity")
         val idPertumbuhan = pertumbuhanDao.insertPertumbuhan(entity).toInt()
         Log.d("LOCAL_INSERT", "ID pertumbuhan yang di-generate: $idPertumbuhan")
 
-        // 3. Mapping data detail pertumbuhan ke entity
         val detailEntities = request.details.map { detail ->
             Log.d("LOCAL_INSERT", "Mapping detail: idJenis=${detail.idJenis}, nilai=${detail.nilai}")
             DetailPertumbuhanEntity(
@@ -134,18 +131,15 @@ class PertumbuhanRepository @Inject constructor(
             )
         }
 
-        // 4. Simpan detail pertumbuhan
         Log.d("LOCAL_INSERT", "Menyimpan ${detailEntities.size} detail pertumbuhan")
         pertumbuhanDao.insertDetailPertumbuhan(detailEntities)
 
-        // 5. Proses analisis stunting
         Log.d("LOCAL_INSERT", "Memulai proses analisis stunting untuk ID: $idPertumbuhan")
         prosesAnalisisStunting(idPertumbuhan)
 
-        // 6. Sukses
         Log.d("LOCAL_INSERT", "Data pertumbuhan dan detail berhasil disimpan lokal")
+        return idPertumbuhan
     }
-
 
     suspend fun updatePertumbuhanWithDetails(
         pertumbuhan: PertumbuhanEntity,
@@ -157,24 +151,30 @@ class PertumbuhanRepository @Inject constructor(
         prosesAnalisisStunting(pertumbuhan.idPertumbuhan)
     }
 
-    suspend fun createPertumbuhanToApi(request: PertumbuhanRequest): Boolean {
+    suspend fun createPertumbuhanToApi(request: PertumbuhanRequest): Int? {
         return try {
             val response = apiService.createPertumbuhan(request)
 
             if (response.isSuccessful) {
-                Log.d("API_POST", "Sukses kirim ke API. Response code: ${response.code()}")
-                true
+                val idFromApi = response.body()?.data?.idPertumbuhan
+                Log.d("API_POST", "Sukses kirim ke API. ID dari API: $idFromApi")
+                idFromApi
             } else {
-                val errorBody = response.errorBody()?.string()
-                Log.e("API_POST", "Gagal kirim ke API. Code: ${response.code()}, Error: $errorBody")
-                false
+                Log.e("API_POST", "Gagal kirim ke API")
+                null
             }
-        } catch (e: CancellationException) {
-            Log.e("API_POST", "Coroutine dibatalkan di Repository", e)
-            throw e
         } catch (e: Exception) {
             Log.e("API_POST", "Exception saat kirim ke API", e)
-            false
+            null
+        }
+    }
+
+    suspend fun updateIdApiPertumbuhan(idLocal: Int, idApi: Int) {
+        try {
+            pertumbuhanDao.updateIdApiPertumbuhan(idLocal, idApi)
+            Log.d("REPOSITORY", "Berhasil update idApiPertumbuhan: idLocal=$idLocal, idApi=$idApi")
+        } catch (e: Exception) {
+            Log.e("REPOSITORY", "Gagal update idApiPertumbuhan: ${e.message}", e)
         }
     }
 
@@ -292,14 +292,12 @@ class PertumbuhanRepository @Inject constructor(
         return pertumbuhanDao.getPertumbuhanWithDetailFlow(idAnak)
     }
 
-    // Standar WHO (suspend)
     suspend fun getStandarWHO(idJenis: Int, jenisKelamin: String): List<StandarPertumbuhanEntity> {
         val result = pertumbuhanDao.getStandarPertumbuhan(idJenis, jenisKelamin)
         Log.d("RepositoryDebug", "standarWHO result: $result")
         return result
     }
 
-    // Jenis pertumbuhan (suspend)
     suspend fun getJenisPertumbuhan(): List<JenisPertumbuhanEntity> {
         return pertumbuhanDao.getAllJenisPertumbuhan()
     }
@@ -334,8 +332,38 @@ class PertumbuhanRepository @Inject constructor(
         }
     }
 
-    suspend fun deletePertumbuhan(idPertumbuhan: Int) {
-        pertumbuhanDao.deleteDetailPertumbuhanById(idPertumbuhan)
-        pertumbuhanDao.deletePertumbuhanById(idPertumbuhan)
+    suspend fun deletePertumbuhan(idLocal: Int) {
+        // Ambil data pertumbuhan berdasarkan id lokal
+        val data = pertumbuhanDao.getPertumbuhanId(idLocal)
+        if (data == null) {
+            Log.w("DELETE_PERTUMBUHAN", "Data dengan idLocal=$idLocal tidak ditemukan di lokal")
+            return
+        }
+
+        // Cek apakah data sudah tersinkronisasi dengan API (idApiPertumbuhan tidak null)
+        data.idApiPertumbuhan?.let { idApi ->
+            try {
+                Log.d("DELETE_PERTUMBUHAN", "Menghapus data dari API dengan idApi=$idApi")
+                val response = apiService.deletePertumbuhan(idApi)
+                if (response.isSuccessful) {
+                    Log.d("DELETE_PERTUMBUHAN", "Berhasil menghapus data di API dengan idApi=$idApi")
+                } else {
+                    Log.w("DELETE_PERTUMBUHAN", "Gagal menghapus di API dengan idApi=$idApi. Code: ${response.code()}, Message: ${response.message()}")
+                }
+            } catch (e: Exception) {
+                Log.e("DELETE_PERTUMBUHAN", "Error saat menghapus data di API dengan idApi=$idApi: ${e.message}", e)
+            }
+        } ?: run {
+            Log.d("DELETE_PERTUMBUHAN", "Data belum tersinkronisasi dengan API (idApiPertumbuhan=null), hanya hapus lokal")
+        }
+
+        // Hapus data dari lokal (termasuk detailnya)
+        try {
+            pertumbuhanDao.deleteDetailsByPertumbuhanId(idLocal)
+            pertumbuhanDao.deletePertumbuhanById(idLocal)
+            Log.d("DELETE_PERTUMBUHAN", "Berhasil menghapus data lokal dengan idLocal=$idLocal")
+        } catch (e: Exception) {
+            Log.e("DELETE_PERTUMBUHAN", "Gagal menghapus data lokal dengan idLocal=$idLocal: ${e.message}", e)
+        }
     }
 }

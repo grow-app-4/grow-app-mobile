@@ -2,7 +2,7 @@ package com.example.grow.ui.screen
 
 import ForgotPasswordScreen
 import HomeScreen
-import LoginScreen2
+import com.example.grow.ui.screen.LoginScreen
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +24,8 @@ sealed class Screen(val route: String) {
     object Nutrisi : Screen("nutrisi")
     object Resep : Screen("resep")
     object Profile : Screen("profile")
+    object BookmarkResep : Screen("bookmark_resep")
+    object ProfileUpdate : Screen("profile_update")
     object InputDataPertumbuhan : Screen("pertumbuhan/{idAnak}") {
         fun createRoute(idAnak: Int) = "pertumbuhan/$idAnak"
     }
@@ -40,7 +42,25 @@ sealed class Screen(val route: String) {
         fun createRoute(idUser: Int, tanggalKonsumsi: String) =
             "asupan_screen/$idUser/$tanggalKonsumsi"
     }
+    object EditAnak : Screen("edit_anak/{userId}/{anakId}") {
+        fun createRoute(userId: Int, anakId: Int) = "edit_anak/$userId/$anakId"
+    }
+    object ResepDetail : Screen("resep_detail/{resepId}") {
+        fun createRoute(resepId: String) = "resep_detail/$resepId"
+    }
     object Login : Screen("login")
+    object Register : Screen("register")
+    object ForgotPassword : Screen("forgot_password")
+    object VerificationCode : Screen("verification_code/{email}") {
+        fun createRoute(email: String) = "verification_code/$email"
+    }
+    object ResetPassword : Screen("reset_password/{email}/{resetToken}") {
+        fun createRoute(email: String, resetToken: String) = "reset_password/$email/$resetToken"
+    }
+    object PasswordResetSuccess : Screen("password_reset_success")
+    object ListDataAnak : Screen("list_data_anak/{userId}") {
+        fun createRoute(userId: Int) = "list_data_anak/$userId"
+    }
 }
 
 @Composable
@@ -80,6 +100,25 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
         }
         composable(Screen.Profile.route) {
             ProfileScreen(navController = navController, viewModel = viewModel)
+        }
+        composable(Screen.ProfileUpdate.route) {
+            ProfileUpdateScreen(navController = navController)
+        }
+        composable(Screen.Resep.route) {
+            ResepScreen(navController = navController)
+        }
+        composable(Screen.BookmarkResep.route) { // Tambahkan route untuk Bookmark
+            BookmarkResepScreen(navController = navController)
+        }
+        composable(
+            route = Screen.ResepDetail.route,
+            arguments = listOf(navArgument("resepId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val resepId = backStackEntry.arguments?.getString("resepId") ?: ""
+            ResepDetailScreen(
+                resepId = resepId,
+                navController = navController
+            )
         }
         composable(
             route = Screen.TambahKehamilan.route,
@@ -137,10 +176,56 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
             val userId = backStackEntry.arguments?.getInt("userId") ?: 0
             TambahAnakScreen(navController = navController, userId = userId)
         }
-        composable(Screen.Login.route) {
-            LoginScreen2(navController, viewModel)
+        composable(
+            route = Screen.ListDataAnak.route,
+            arguments = listOf(navArgument("userId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getInt("userId") ?: 0
+            ListDataAnakScreen(navController = navController, userId = userId)
         }
-        composable("register") { RegisterScreen() }
-        composable("forgot_password") { ForgotPasswordScreen(navController) }
+        composable(
+            route = Screen.EditAnak.route,
+            arguments = listOf(
+                navArgument("userId") { type = NavType.IntType },
+                navArgument("anakId") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getInt("userId") ?: 0
+            val anakId = backStackEntry.arguments?.getInt("anakId") ?: 0
+            UpdateDataAnakScreen(navController = navController, userId = userId, anakId = anakId)
+        }
+        composable(Screen.Login.route) {
+            LoginScreen(navController, viewModel)
+        }
+        composable(Screen.Register.route) {
+            RegisterScreen(navController)
+        }
+        composable(Screen.ForgotPassword.route) {
+            ForgotPasswordScreen(navController)
+        }
+
+        composable(
+            route = Screen.VerificationCode.route,
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            VerificationCodeScreen(email = email, navController = navController)
+        }
+
+        composable(
+            route = Screen.ResetPassword.route,
+            arguments = listOf(
+                navArgument("email") { type = NavType.StringType },
+                navArgument("resetToken") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            val resetToken = backStackEntry.arguments?.getString("resetToken") ?: ""
+            ResetPasswordScreen(email = email, resetToken = resetToken, navController = navController)
+        }
+
+        composable(Screen.PasswordResetSuccess.route) {
+            PasswordResetSuccessScreen(navController)
+        }
     }
 }

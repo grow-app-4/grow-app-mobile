@@ -1,5 +1,6 @@
 package com.example.grow.ui.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,10 +15,10 @@ class AnakViewModel @Inject constructor(
     private val anakRepository: AnakRepository
 ) : ViewModel() {
 
-    fun fetchAllAnakFromApi() {
+    fun fetchAllAnakFromApi(context: Context) {
         viewModelScope.launch {
             try {
-                anakRepository.fetchAllAnakFromApi()
+                anakRepository.fetchAllAnakFromApi(context)
             } catch (e: Exception) {
                 Log.e("AnakViewModel", "Error fetching anak data: ${e.message}")
             }
