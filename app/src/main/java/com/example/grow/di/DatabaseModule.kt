@@ -10,6 +10,7 @@ import com.example.grow.data.AnakDao
 import com.example.grow.data.JenisPertumbuhanDao
 import com.example.grow.data.StandarPertumbuhanDao
 import com.example.grow.data.UserDao
+import com.example.grow.data.ResepDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -50,4 +51,8 @@ object DatabaseModule {
 
     @Provides
     fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
+}
+
+    @Provides
+    fun provideResepDao(db: AppDatabase): ResepDao = db.resepDao()
 }

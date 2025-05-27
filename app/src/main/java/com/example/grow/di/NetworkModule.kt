@@ -7,6 +7,7 @@ import com.example.grow.data.remote.AsupanApiService
 import com.example.grow.data.remote.KehamilanApiService
 import com.example.grow.data.remote.MakananApiService
 import com.example.grow.data.remote.UserApiService
+import com.example.grow.data.remote.ResepApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -87,5 +88,11 @@ object NetworkModule {
     @Singleton
     fun provideMakananApiService(retrofit: Retrofit): MakananApiService {
         return retrofit.create(MakananApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideResepApiService(retrofit: Retrofit): ResepApiService {
+        return retrofit.create(ResepApiService::class.java)
     }
 }
