@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.data.model.Resep
 import com.example.grow.data.repository.BookmarkRepository
+import com.example.grow.data.repository.ResepRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,36 +14,45 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ResepDetailViewModel @Inject constructor(
+    private val resepRepository: ResepRepository,
     private val bookmarkRepository: BookmarkRepository
-    // Nantinya repository lain akan di-inject di sini
 ) : ViewModel() {
 
     private val _resepDetail = MutableStateFlow<Resep?>(null)
     val resepDetail: StateFlow<Resep?> = _resepDetail.asStateFlow()
 
-    // Meneruskan bookmark dari repository
-    val bookmarkedResepList = bookmarkRepository.bookmarkedResepList
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
-    // Function untuk memuat detail resep berdasarkan ID
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    val bookmarkedResepIds = bookmarkRepository.bookmarkedResepIds
+
     fun loadResepDetail(resepId: String) {
         viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
             try {
-                // Nantinya di sini akan memanggil repository untuk mendapatkan detail dari API
-                // Contoh: val detail = resepRepository.getResepDetail(resepId)
-                // _resepDetail.value = detail
+                // Gunakan method baru yang mendapatkan semua data sekaligus
+                val resep = resepRepository.getResepDetail(resepId)
+                _resepDetail.value = resep.copy(
+                    isBookmarked = bookmarkRepository.isBookmarked(resepId)
+                )
             } catch (e: Exception) {
-                // Handle error
+                _error.value = "Error mengambil detail resep: ${e.message}"
+            } finally {
+                _loading.value = false
             }
         }
     }
 
-    // Function untuk toggle bookmark
     fun toggleBookmark(resep: Resep) {
-        bookmarkRepository.toggleBookmark(resep)
-    }
-
-    // Function untuk cek status bookmark
-    fun isBookmarked(resepId: String): Boolean {
-        return bookmarkRepository.isBookmarked(resepId)
+        viewModelScope.launch {
+            bookmarkRepository.toggleBookmark(resep)
+            _resepDetail.value = _resepDetail.value?.copy(
+                isBookmarked = bookmarkRepository.isBookmarked(resep.idResep)
+            )
+        }
     }
 }

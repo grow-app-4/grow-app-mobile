@@ -1,55 +1,41 @@
-package com.example.grow.data.model
+package com.example.grow.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "makanan")
+@Entity(tableName = "resep")
 data class ResepEntity(
-    @PrimaryKey(autoGenerate = false) val idMakanan: Int,
-    val namaMakanan: String,
-    val kategori: String,
-    val ukuranPorsi: Int,
-    val usiaRekomendasi: Int?,
-    val rating: Float? = 0.0f,
-    val waktuPersiapan: Int? = 0
+    @PrimaryKey(autoGenerate = false) val idResep: Int,
+    val namaResep: String,
+    val deskripsi: String,
+    val fotoResep: String?,
+    val usiaRekomendasi: String,
+    val jumlah: Float,
+    val rating: Float?,
+    val waktuPembuatan: Int?,
+    val namaKategori: String,
+    val idNutrisi: Int
+)
+
+@Entity(tableName = "langkah_pembuatan", primaryKeys = ["resepId", "nomorLangkah"])
+data class LangkahPembuatanEntity(
+    val resepId: Int,
+    val nomorLangkah: Int,
+    val deskripsi: String,
+    val timestamps: String? // Jika perlu
 )
 
 @Entity(tableName = "bahan_baku")
 data class BahanEntity(
     @PrimaryKey(autoGenerate = false) val idBahan: Int,
     val namaBahan: String,
-    val namaBahanEn: String?,
     val satuan: String,
     val hargaBahan: Float
 )
 
-@Entity(tableName = "makanan_bahan", primaryKeys = ["idMakanan", "idBahan"])
+@Entity(tableName = "resep_bahan", primaryKeys = ["idResep", "idBahan"])
 data class ResepBahanEntity(
-    val idMakanan: Int,
+    val idResep: Int,
     val idBahan: Int,
-    val jumlah: Float?,
-    val satuan: String?
-)
-
-@Entity(tableName = "langkah_pembuatan", primaryKeys = ["idMakanan", "urutan"])
-data class LangkahPembuatanEntity(
-    val idMakanan: Int,
-    val urutan: Int,
-    val deskripsi: String,
-    val waktu: Int
-)
-
-@Entity(tableName = "nutrisi")
-data class NutrisiEntity(
-    @PrimaryKey(autoGenerate = false) val idNutrisi: Int,
-    val namaNutrisi: String,
-    val satuan: String
-)
-
-@Entity(tableName = "makanan_nutrisi", primaryKeys = ["idMakanan", "idNutrisi"])
-data class ResepNutrisiEntity(
-    val idMakanan: Int,
-    val idNutrisi: Int,
-    val jumlah: Float?,
-    val satuan: String?
+    val jumlahBahan: Float
 )

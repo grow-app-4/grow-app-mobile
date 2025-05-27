@@ -36,7 +36,9 @@ fun FilterDialog(
         onDismissRequest = onDismiss,
         title = { Text("Filter Pencarian", fontWeight = FontWeight.Bold) },
         text = {
-            Column {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
                 Text("Time", fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

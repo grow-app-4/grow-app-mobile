@@ -1,26 +1,60 @@
 package com.example.grow.data.remote
 
-import com.example.grow.data.model.ResepEntity
-import com.example.grow.data.model.BahanEntity
-import com.example.grow.data.model.LangkahPembuatanEntity
-import com.example.grow.data.model.NutrisiEntity
+import com.example.grow.data.model.*
 import retrofit2.Response
-import retrofit2.http.GET
-import retrofit2.http.Path
+import retrofit2.http.*
 
 interface ResepApiService {
-    @GET("makanan")
-    suspend fun getAllResep(): Response<List<ResepEntity>>
+    // Get all recipes
+    @GET("resep")
+    suspend fun getAllResep(): Response<ResepResponse>
 
-    @GET("bahan_baku")
-    suspend fun getAllBahan(): Response<List<BahanEntity>>
+    // Get detailed recipe information (all in one endpoint)
+    @GET("resep/{id}/detail")
+    suspend fun getDetailResep(
+        @Path("id") id: String
+    ): Response<ResepSingleResponse>
 
-    @GET("makanan/{id}/bahan")
-    suspend fun getBahanByResep(@Path("id") idMakanan: Int): Response<List<BahanEntity>>
+    // Create new recipe
+    @POST("resep")
+    suspend fun createResep(
+        @Body request: ResepRequest
+    ): Response<ResepSingleResponse>
 
-    @GET("makanan/{id}/langkah")
-    suspend fun getLangkahByResep(@Path("id") idMakanan: Int): Response<List<LangkahPembuatanEntity>>
+    // Update existing recipe
+    @PUT("resep/{id}")
+    suspend fun updateResep(
+        @Path("id") id: String,
+        @Body resep: Resep
+    ): Response<ResepSingleResponse>
 
-    @GET("makanan/{id}/nutrisi")
-    suspend fun getNutrisiByResep(@Path("id") idMakanan: Int): Response<List<NutrisiEntity>>
+    // Delete recipe
+    @DELETE("resep/{id}")
+    suspend fun deleteResep(
+        @Path("id") id: String
+    ): Response<ResepResponse>
+
+    // Legacy endpoints (will be removed after migration to single endpoint)
+    // Get ingredients by recipe
+    @GET("resep/{id}/bahan")
+    suspend fun getBahanByResep(
+        @Path("id") id: String
+    ): Response<ResepResponse>
+
+    // Get preparation steps by recipe
+    @GET("resep/{id}/langkah-pembuatan")
+    suspend fun getLangkahByResep(
+        @Path("id") id: String
+    ): Response<ResepResponse>
+
+    // Get nutrition by recipe
+    @GET("resep/{id}/nutrisi")
+    suspend fun getNutrisiByResep(
+        @Path("id") id: String
+    ): Response<ResepResponse>
+
+    @GET("resep/{id}/total-harga")
+    suspend fun getTotalHarga(
+        @Path("id") id: String
+    ): Response<TotalHargaResponse>
 }

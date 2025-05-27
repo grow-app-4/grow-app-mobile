@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Piring (lingkaran besar) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M12,18m-6,0a6,6 0 1,1 12,0a6,6 0 1,1 -12,0"
+        android:strokeWidth="1"
+        android:strokeColor="#000000"/>
+    <!-- Makanan di atas piring (bentuk sederhana seperti setengah lingkaran) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M12,12m-4,0a4,4 0 1,0 8,0a4,4 0 0,0 -8,0"/>
+    <!-- Garpu (opsional, sederhana) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M8,18l-4,4m2,-4l-2,4"
+        android:strokeWidth="1"
+        android:strokeColor="#000000"/>
+</vector>
