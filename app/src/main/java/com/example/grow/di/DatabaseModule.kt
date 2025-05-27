@@ -51,7 +51,6 @@ object DatabaseModule {
 
     @Provides
     fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
-}
 
     @Provides
     fun provideResepDao(db: AppDatabase): ResepDao = db.resepDao()

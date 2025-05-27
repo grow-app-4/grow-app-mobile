@@ -16,7 +16,11 @@ import com.example.grow.data.model.*
     ResepBahanEntity::class,
     LangkahPembuatanEntity::class,
     NutrisiEntity::class,
-    ResepNutrisiEntity::class], version = 11, exportSchema = false)
+    ResepNutrisiEntity::class
+ ],
+    version = 10,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun anakDao(): AnakDao
