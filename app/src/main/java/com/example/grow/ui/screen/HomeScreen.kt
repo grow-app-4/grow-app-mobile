@@ -78,7 +78,6 @@ fun HomeScreen(
                     .padding(paddingValues)
             ) {
                 if (isLoading) {
-                    // Show loading indicator while data is being fetched
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -94,58 +93,46 @@ fun HomeScreen(
                             .fillMaxSize()
                             .verticalScroll(scrollState)
                     ) {
-                        // Child profile header
-                        ChildProfileHeader(
-                            navController = navController,
-                            viewModel = viewModel,
-                            children = children,
-                            selectedChild = selectedChild,
-                            onChildChanged = { selectedIndex ->
-                                viewModel.selectChild(selectedIndex)
-                            },
-                            userId = userId
-                        )
+                        // Child profile header with white background
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            ChildProfileHeader(
+                                navController = navController,
+                                viewModel = viewModel,
+                                children = children,
+                                selectedChild = selectedChild,
+                                onChildChanged = { selectedIndex ->
+                                    viewModel.selectChild(selectedIndex)
+                                },
+                                userId = userId
+                            )
+                        }
 
-                        // Blue background container for cards
-                        selectedChild?.idAnak?.let { idAnak ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        BiruMudaMain,
-                                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-                                    )
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 20.dp)
-                                ) {
-                                    GrowthDataCard(viewModel = viewModel, idAnak = idAnak)
-                                    GrowthChartCard(navController = navController, viewModel = viewModel, anak = selectedChild)
-                                    AnalysisResultCard(statusStunting = statusStunting)
-                                    Spacer(modifier = Modifier.height(80.dp))
-                                }
-                            }
-                        } ?: run {
-                            // Show placeholder when no child is selected
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Tambah profil anak untuk melihat data pertumbuhan.",
-                                    style = Typography.bodyMedium,
-                                    color = TextColor,
-                                    textAlign = TextAlign.Center
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                                .background(
+                                    BiruMudaMain,
+                                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
                                 )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 20.dp)
+                            ) {
+                                // Always display cards, even if selectedChild is null
+                                GrowthDataCard(viewModel = viewModel, idAnak = selectedChild?.idAnak)
+                                GrowthChartCard(navController = navController, viewModel = viewModel, anak = selectedChild)
+                                AnalysisResultCard(statusStunting = if (selectedChild != null) statusStunting else null)
+                                Spacer(modifier = Modifier.height(180.dp))
                             }
                         }
                     }
 
-                    // Floating button for adding growth data
                     selectedChild?.idAnak?.let { idAnak ->
                         ButtonTambahPertumbuhan(
                             selectedChildId = idAnak,
@@ -309,11 +296,13 @@ fun ChildProfileHeader(
 }
 
 @Composable
-fun GrowthDataCard(viewModel: PertumbuhanViewModel = hiltViewModel(), idAnak: Int) {
+fun GrowthDataCard(viewModel: PertumbuhanViewModel = hiltViewModel(), idAnak: Int?) {
     val latestPertumbuhan by viewModel.latestPertumbuhan.collectAsState()
 
     LaunchedEffect(idAnak) {
-        viewModel.loadLatestPertumbuhan(idAnak)
+        if (idAnak != null) {
+            viewModel.loadLatestPertumbuhan(idAnak)
+        }
     }
 
     Card(
@@ -380,7 +369,7 @@ fun GrowthDataItem(title: String, value: String) {
 fun GrowthChartCard(
     navController: NavController,
     viewModel: PertumbuhanViewModel,
-    anak: AnakEntity
+    anak: AnakEntity?
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
 
@@ -412,7 +401,7 @@ fun GrowthChartCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
 
-            // Header dan Dropdown Custom
+            // Dropdown
             Box(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
@@ -458,15 +447,10 @@ fun GrowthChartCard(
                             text = {
                                 Text(
                                     text = option,
-                                    style = Typography.bodyMedium.copy(
-                                        color = TextColor
-                                    ),
+                                    style = Typography.bodyMedium.copy(color = TextColor),
                                     modifier = Modifier.padding(4.dp)
                                 )
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Transparent)
+                            }
                         )
                     }
                 }
@@ -498,17 +482,24 @@ fun GrowthChartCard(
                 )
             }
 
-            // Konten berdasarkan tab
-            when (selectedTabIndex) {
-                0 -> key(idJenis) {
-                    GrowthChart(anak = anak, idJenis = idJenis)
+            // Isi konten tab
+            if (anak == null) {
+                Text(
+                    text = "Pilih atau tambahkan anak terlebih dahulu",
+                    style = Typography.bodyMedium.copy(color = TextColor.copy(alpha = 0.6f)),
+                    modifier = Modifier.padding(top = 24.dp)
+                )
+            } else {
+                when (selectedTabIndex) {
+                    0 -> key(idJenis) {
+                        GrowthChart(anak = anak, idJenis = idJenis)
+                    }
+                    1 -> GrowthHistoryTable(navController = navController, idAnak = anak.idAnak)
                 }
-                1 -> GrowthHistoryTable(navController = navController, idAnak = anak.idAnak)
             }
         }
     }
 }
-
 
 @Composable
 fun GrowthChart(
@@ -879,7 +870,7 @@ fun GrowthHistoryContent(
 
 
 @Composable
-fun AnalysisResultCard(statusStunting: String) {
+fun AnalysisResultCard(statusStunting: String?) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
