@@ -135,6 +135,9 @@ fun NutrisiScreen(
             .background(BackgroundColor)
             .padding(16.dp)
     ) {
+        // Add Spacer to push the tab row down
+        Spacer(modifier = Modifier.height(32.dp))
+
         // Tab Selection
         Row(
             modifier = Modifier
@@ -487,10 +490,10 @@ fun NutrisiScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    if(usiaKehamilan != null && sudahAdaAsupan == false) {
+                    if (usiaKehamilan != null && sudahAdaAsupan == false) {
                         Button(
                             onClick = {
-                                    navController.navigate("asupan_screen/$userId/$selectedDate")
+                                navController.navigate("asupan_screen/$userId/$selectedDate")
                             },
                             modifier = Modifier
                                 .fillMaxWidth()

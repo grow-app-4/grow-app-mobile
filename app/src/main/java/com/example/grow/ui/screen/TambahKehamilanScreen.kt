@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.example.grow.viewmodel.KehamilanViewModel
 import com.example.grow.ui.theme.*
 import java.util.Calendar
@@ -30,6 +33,7 @@ import java.util.Calendar
 @Composable
 fun TambahKehamilanScreen(
     userId: Int,
+    navController: NavController, // Added NavController as a parameter
     viewModel: KehamilanViewModel = hiltViewModel(),
     onNavigateToNutrisi: (Int) -> Unit
 ) {
@@ -57,6 +61,15 @@ fun TambahKehamilanScreen(
                             color = TextPrimary
                         )
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali",
+                            tint = TextPrimary
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White,

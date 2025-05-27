@@ -85,7 +85,7 @@ class ListDataAnakViewModel @Inject constructor(
 
     private fun calculateAge(tanggalLahir: String): String {
         return try {
-            val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val birthDate = LocalDate.parse(tanggalLahir, formatter)
             val currentDate = LocalDate.now()
             val period = Period.between(birthDate, currentDate)

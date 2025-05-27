@@ -50,7 +50,9 @@ fun MainScreen(
         "tambah_anak/{userId}",
         "pertumbuhan/{idAnak}",
         "pertumbuhan/{idAnak}/edit/{idPertumbuhan}",
-        "edit_anak/{userId}/{anakId}"
+        "edit_anak/{userId}/{anakId}",
+        "tambah_kehamilan/{userId}",
+        "asupan_screen/{idUser}/{tanggalKonsumsi}"
     )
 
     // Jalankan sinkronisasi hanya jika pengguna sudah login

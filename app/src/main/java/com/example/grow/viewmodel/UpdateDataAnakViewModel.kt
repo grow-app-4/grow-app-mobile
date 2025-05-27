@@ -20,7 +20,7 @@ class UpdateDataAnakViewModel @Inject constructor(
 ) : ViewModel() {
 
     data class UiState(
-        val originalChild: AnakEntity? = null, // Menyimpan data anak asli
+        val originalChild: AnakEntity? = null,
         val name: String = "",
         val birthDate: String = "",
         val gender: String? = null,

@@ -76,7 +76,6 @@ object NetworkModule {
     fun provideUserApiService(retrofit: Retrofit): UserApiService {
         return retrofit.create(UserApiService::class.java)
     }
-}
 
     @Provides
     @Singleton

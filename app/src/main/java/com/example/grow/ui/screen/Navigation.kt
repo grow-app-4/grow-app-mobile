@@ -125,10 +125,12 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
             arguments = listOf(navArgument("userId") { type = NavType.IntType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getInt("userId") ?: 0
-
             TambahKehamilanScreen(
                 userId = userId,
-                onNavigateToNutrisi = { navController.navigate(Screen.Nutrisi.route) }
+                navController = navController, // Added navController parameter
+                onNavigateToNutrisi = { navigatedUserId ->
+                    navController.navigate(Screen.Nutrisi.route)
+                }
             )
         }
         composable(
@@ -140,7 +142,6 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
         ) { backStackEntry ->
             val idUser = backStackEntry.arguments?.getInt("idUser") ?: 0
             val tanggalKonsumsi = backStackEntry.arguments?.getString("tanggalKonsumsi") ?: ""
-
             TambahAsupanScreen(
                 idUser = idUser,
                 tanggalKonsumsi = tanggalKonsumsi,
@@ -203,7 +204,6 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
         composable(Screen.ForgotPassword.route) {
             ForgotPasswordScreen(navController)
         }
-
         composable(
             route = Screen.VerificationCode.route,
             arguments = listOf(navArgument("email") { type = NavType.StringType })
@@ -211,7 +211,6 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
             val email = backStackEntry.arguments?.getString("email") ?: ""
             VerificationCodeScreen(email = email, navController = navController)
         }
-
         composable(
             route = Screen.ResetPassword.route,
             arguments = listOf(
@@ -223,7 +222,6 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
             val resetToken = backStackEntry.arguments?.getString("resetToken") ?: ""
             ResetPasswordScreen(email = email, resetToken = resetToken, navController = navController)
         }
-
         composable(Screen.PasswordResetSuccess.route) {
             PasswordResetSuccessScreen(navController)
         }

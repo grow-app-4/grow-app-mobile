@@ -69,12 +69,28 @@ fun HomeScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            // Optional: Add top bar if needed
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White) // Keep the white background for the top bar
+            ) {
+                ChildProfileHeader(
+                    navController = navController,
+                    viewModel = viewModel,
+                    children = children,
+                    selectedChild = selectedChild,
+                    onChildChanged = { selectedIndex ->
+                        viewModel.selectChild(selectedIndex)
+                    },
+                    userId = userId
+                )
+            }
         },
         content = { paddingValues ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(BiruMudaMain)
                     .padding(paddingValues)
             ) {
                 if (isLoading) {
@@ -92,44 +108,21 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(scrollState)
-                    ) {
-                        // Child profile header with white background
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            ChildProfileHeader(
-                                navController = navController,
-                                viewModel = viewModel,
-                                children = children,
-                                selectedChild = selectedChild,
-                                onChildChanged = { selectedIndex ->
-                                    viewModel.selectChild(selectedIndex)
-                                },
-                                userId = userId
+                            .background(
+                                BiruMudaMain,
+                                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
                             )
-                        }
-
-                        Box(
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .fillMaxHeight()
-                                .background(
-                                    BiruMudaMain,
-                                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-                                )
+                                .padding(top = 20.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 20.dp)
-                            ) {
-                                // Always display cards, even if selectedChild is null
-                                GrowthDataCard(viewModel = viewModel, idAnak = selectedChild?.idAnak)
-                                GrowthChartCard(navController = navController, viewModel = viewModel, anak = selectedChild)
-                                AnalysisResultCard(statusStunting = if (selectedChild != null) statusStunting else null)
-                                Spacer(modifier = Modifier.height(180.dp))
-                            }
+                            // Always display cards, even if selectedChild is null
+                            GrowthDataCard(viewModel = viewModel, idAnak = selectedChild?.idAnak)
+                            GrowthChartCard(navController = navController, viewModel = viewModel, anak = selectedChild)
+                            AnalysisResultCard(statusStunting = if (selectedChild != null) statusStunting else null)
+                            Spacer(modifier = Modifier.height(180.dp))
                         }
                     }
 
@@ -158,6 +151,8 @@ fun ChildProfileHeader(
     val childAges by viewModel.childAges.collectAsState()
 
     Column(modifier = Modifier.padding(16.dp)) {
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(
             text = "Profil Anak",
             style = Typography.titleMedium.copy(color = BiruText),
