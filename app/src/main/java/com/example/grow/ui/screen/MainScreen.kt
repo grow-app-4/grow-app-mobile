@@ -14,14 +14,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.grow.ui.theme.BackgroundColor
-import com.example.grow.ui.theme.BiruMudaMain
 import com.example.grow.ui.theme.BiruMudaSecondary
 import com.example.grow.ui.viewmodel.AnakViewModel
 import com.example.grow.ui.viewmodel.PertumbuhanViewModel
 import com.example.grow.util.SessionManager
 import com.example.grow.viewmodel.AuthViewModel
 import com.example.grow.viewmodel.GrafikViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MainScreen(
@@ -40,33 +40,34 @@ fun MainScreen(
 
     // Daftar rute yang tidak menampilkan bottom bar
     val routesWithoutBottomBar = listOf(
+        Screen.Splash.route,
         Screen.Login.route,
-        "register",
-        "forgot_password",
-        "verification_code/{email}",
-        "reset_password/{email}/{resetToken}",
-        "password_reset_success",
-        "register",
-        "tambah_anak/{userId}",
-        "pertumbuhan/{idAnak}",
-        "pertumbuhan/{idAnak}/edit/{idPertumbuhan}",
-        "edit_anak/{userId}/{anakId}",
-        "tambah_kehamilan/{userId}",
-        "asupan_screen/{idUser}/{tanggalKonsumsi}"
+        Screen.Register.route,
+        Screen.ForgotPassword.route,
+        Screen.VerificationCode.route,
+        Screen.ResetPassword.route,
+        Screen.PasswordResetSuccess.route,
+        Screen.TambahAnak.route,
+        Screen.TambahKehamilan.route,
+        Screen.TambahAsupan.route,
+        Screen.InputDataPertumbuhan.route,
+        Screen.EditDataPertumbuhan.route,
+        Screen.EditAnak.route
     )
 
-    // Jalankan sinkronisasi hanya jika pengguna sudah login
-    LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) {
-            Log.d("MainScreen", "Start syncing")
-            grafikViewModel.syncStandarPertumbuhan()
-            Log.d("MainScreen", "Done grafik")
-
-            anakViewModel.fetchAllAnakFromApi(context)
-            Log.d("MainScreen", "Done anak")
-
-            pertumbuhanViewModel.loadDataAwal()
-            Log.d("MainScreen", "Done pertumbuhan")
+    // Jalankan sinkronisasi hanya jika pengguna sudah login dan bukan di splash screen
+    LaunchedEffect(isLoggedIn, currentRoute) {
+        if (isLoggedIn && currentRoute != Screen.Splash.route) {
+            try {
+                withContext(Dispatchers.IO) {
+                    grafikViewModel.syncStandarPertumbuhan()
+                    anakViewModel.fetchAllAnakFromApi(context)
+                    pertumbuhanViewModel.loadDataAwal()
+                }
+                Log.d("MainScreen", "Data synchronization completed")
+            } catch (e: Exception) {
+                Log.e("MainScreen", "Sync error: ${e.message}")
+            }
         }
     }
 

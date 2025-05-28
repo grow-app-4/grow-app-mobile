@@ -2,13 +2,9 @@ package com.example.grow.ui.screen
 
 import ForgotPasswordScreen
 import HomeScreen
-import com.example.grow.ui.screen.LoginScreen
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -20,6 +16,7 @@ import com.example.grow.util.SessionManager
 import com.example.grow.viewmodel.AuthViewModel
 
 sealed class Screen(val route: String) {
+    object Splash : Screen("splash")
     object Home : Screen("home")
     object Nutrisi : Screen("nutrisi")
     object Resep : Screen("resep")
@@ -65,37 +62,26 @@ sealed class Screen(val route: String) {
 
 @Composable
 fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hiltViewModel()) {
-    val context = LocalContext.current
-    val isLoggedIn = remember { mutableStateOf(SessionManager.isLoggedIn(context)) }
-
-    // Pantau perubahan isLoggedIn
-    LaunchedEffect(Unit) {
-        snapshotFlow { SessionManager.isLoggedIn(context) }
-            .collect { newIsLoggedIn ->
-                Log.d("AppNavHost", "isLoggedIn changed to $newIsLoggedIn")
-                isLoggedIn.value = newIsLoggedIn
-            }
-    }
-
-    // Navigasi berdasarkan status login
-    LaunchedEffect(isLoggedIn.value) {
-        Log.d("AppNavHost", "LaunchedEffect: isLoggedIn = ${isLoggedIn.value}")
-        val destination = if (isLoggedIn.value) Screen.Home.route else Screen.Login.route
-        navController.navigate(destination) {
-            popUpTo(navController.graph.id) { inclusive = true }
-            launchSingleTop = true
-        }
-    }
-
     NavHost(
         navController = navController,
-        startDestination = Screen.Login.route
+        startDestination = Screen.Splash.route
     ) {
+        composable(Screen.Splash.route) {
+            SplashScreen(
+                navController = navController,
+                onSplashFinished = { isLoggedIn ->
+                    navController.navigate(if (isLoggedIn) Screen.Home.route else Screen.Login.route) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
         composable(Screen.Home.route) {
-            HomeScreen(navController = navController, userId = SessionManager.getUserId(context))
+            HomeScreen(navController = navController, userId = SessionManager.getUserId(LocalContext.current))
         }
         composable(Screen.Nutrisi.route) {
-            val userId = SessionManager.getUserId(context)
+            val userId = SessionManager.getUserId(LocalContext.current)
             NutrisiScreen(navController = navController, userId = userId)
         }
         composable(Screen.Profile.route) {
@@ -107,7 +93,7 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
         composable(Screen.Resep.route) {
             ResepScreen(navController = navController)
         }
-        composable(Screen.BookmarkResep.route) { // Tambahkan route untuk Bookmark
+        composable(Screen.BookmarkResep.route) {
             BookmarkResepScreen(navController = navController)
         }
         composable(
@@ -127,7 +113,7 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
             val userId = backStackEntry.arguments?.getInt("userId") ?: 0
             TambahKehamilanScreen(
                 userId = userId,
-                navController = navController, // Added navController parameter
+                navController = navController,
                 onNavigateToNutrisi = { navigatedUserId ->
                     navController.navigate(Screen.Nutrisi.route)
                 }
@@ -149,7 +135,7 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
             )
         }
         composable(
-            Screen.InputDataPertumbuhan.route,
+            route = Screen.InputDataPertumbuhan.route,
             arguments = listOf(navArgument("idAnak") { type = NavType.IntType })
         ) { backStackEntry ->
             val idAnak = backStackEntry.arguments?.getInt("idAnak") ?: 0

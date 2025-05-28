@@ -75,5 +75,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation ("com.github.PhilJay:MPAndroidChart:v3.1.0")
     implementation ("io.coil-kt:coil-compose:2.4.0")
+    implementation ("androidx.core:core-splashscreen:1.0.1")
 
 }
