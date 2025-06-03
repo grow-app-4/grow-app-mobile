@@ -8,7 +8,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
-import android.widget.Toast
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.github.mikephil.charting.charts.BarChart
@@ -47,7 +49,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.grow.data.AnakEntity
 
 // Import colors dari theme
 import com.example.grow.ui.theme.BiruPrimer
@@ -56,6 +67,8 @@ import com.example.grow.ui.theme.BiruMudaSecondary
 import com.example.grow.ui.theme.TextColor
 import com.example.grow.ui.theme.BackgroundColor
 import com.example.grow.ui.theme.BiruText
+import com.example.grow.ui.theme.Typography
+import com.example.grow.ui.viewmodel.PertumbuhanViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +76,8 @@ fun NutrisiScreen(
     userId: Int,
     navController: NavController,
     viewModelAsupan: AsupanViewModel = hiltViewModel(),
-    viewModelKehamilan: KehamilanViewModel = hiltViewModel()
+    viewModelKehamilan: KehamilanViewModel = hiltViewModel(),
+    viewModelAnak: PertumbuhanViewModel = hiltViewModel()
 ) {
     // State management
     val navBackStackEntry = navController.currentBackStackEntryAsState().value
@@ -88,8 +102,9 @@ fun NutrisiScreen(
     }
     var pilihanInput by rememberSaveable { mutableStateOf("kehamilan") }
 
-    // Child analysis states
-    val idAnak = 1
+    val children by viewModelAnak.children.collectAsState()
+    val selectedChildIndex by viewModelAnak.selectedChildIndex.collectAsState()
+    val selectedChild = children.getOrNull(selectedChildIndex)
     val tanggalKonsumsi by viewModelAsupan.tanggalKonsumsi.collectAsState()
     val jumlahPorsi by viewModelAsupan.jumlahPorsi.collectAsState()
     val isLoading by viewModelAsupan.loading.collectAsState()
@@ -100,13 +115,17 @@ fun NutrisiScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
 
+    LaunchedEffect(userId) {
+        viewModelAnak.loadChildren(userId)
+    }
+
     // LaunchedEffects
     LaunchedEffect(Unit) {
         viewModelAsupan.initTanggalHariIniJikaKosong()
     }
 
-    LaunchedEffect(tanggalKonsumsi) {
-        if (tanggalKonsumsi.isNotBlank()) {
+    LaunchedEffect(tanggalKonsumsi, selectedChild?.idAnak) {
+        selectedChild?.idAnak?.let { idAnak ->
             viewModelAsupan.getAsupanAnakByIdAnakAndTanggal(idAnak, tanggalKonsumsi)
         }
     }
@@ -251,8 +270,50 @@ fun NutrisiScreen(
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        if (usiaKehamilan != null && sudahAdaAsupan == false) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clip(RoundedCornerShape(30.dp))
+                                    .background(
+                                        brush = Brush.horizontalGradient(
+                                            colors = listOf(Color(0xFF42A5F5), Color(0xFF1E88E5))
+                                        )
+                                    )
+                                    .clickable {
+                                        navController.navigate("asupan_screen/$userId/$selectedDate")
+                                    }
+                                    .shadow(elevation = 4.dp, shape = RoundedCornerShape(30.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Tambah",
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Tambah Data Asupan",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
                     } ?: run {
                         // No pregnancy data card
+                        Spacer(modifier = Modifier.height(20.dp))
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -361,7 +422,7 @@ fun NutrisiScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = "Belum ada data Asupan Harian",
+                                                text = "Ayo Isi Data Asupan Dulu Ya!",
                                                 fontSize = 14.sp,
                                                 color = Color.Gray
                                             )
@@ -454,7 +515,7 @@ fun NutrisiScreen(
                                 )
                             } else {
                                 Text(
-                                    text = "Analisis akan muncul setelah data asupan tersedia",
+                                    text = "Analisis Akan Muncul Setelah Moms Isi Data Asupan!",
                                     fontSize = 14.sp,
                                     color = Color.Gray
                                 )
@@ -489,26 +550,6 @@ fun NutrisiScreen(
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
-
-                    if (usiaKehamilan != null && sudahAdaAsupan == false) {
-                        Button(
-                            onClick = {
-                                navController.navigate("asupan_screen/$userId/$selectedDate")
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = BiruPrimer),
-                            shape = RoundedCornerShape(24.dp)
-                        ) {
-                            Text(
-                                text = "Tambah Data Asupan",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = BackgroundColor
-                            )
-                        }
-                    }
                 }
             }
 
@@ -526,68 +567,18 @@ fun NutrisiScreen(
                             .clickable {
                                 // Navigate to add child data if needed
                             },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = BiruMudaMain),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7FAFC)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        if (usiaAnak.isNotBlank()) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Child avatar placeholder
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(BiruPrimer, RoundedCornerShape(24.dp))
-                                ) {
-                                    Text(
-                                        text = "👶",
-                                        modifier = Modifier.align(Alignment.Center),
-                                        fontSize = 24.sp
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column {
-                                    Text(
-                                        text = "Anak",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = BiruText
-                                    )
-                                    Text(
-                                        text = "Usia: $usiaAnak",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Normal,
-                                        color = BiruText
-                                    )
-                                }
+                        ChildProfileHeader(
+                            viewModel = viewModelAnak,
+                            children = children,
+                            selectedChild = selectedChild,
+                            onChildChanged = { selectedIndex ->
+                                viewModelAnak.selectChild(selectedIndex)
                             }
-                        } else {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Add",
-                                    tint = BiruText,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Tambah Data Anak",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = BiruText
-                                )
-                            }
-                        }
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -628,7 +619,9 @@ fun NutrisiScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
 
                                 Button(
-                                    onClick = { viewModelAsupan.inputAsupan(idAnak) },
+                                    onClick = { selectedChild?.idAnak?.let { id ->
+                                        viewModelAsupan.inputAsupan(id)
+                                    } },
                                     enabled = !isLoading,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -739,7 +732,7 @@ fun NutrisiScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Belum ada data Asupan Harian",
+                                        text = "Belum ada data Asupan Harian yang Moms Isi",
                                         fontSize = 14.sp,
                                         color = Color.Gray
                                     )
@@ -788,6 +781,32 @@ fun NutrisiScreen(
                                     color = Color.Gray
                                 )
                             }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Food Recommendation Section
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = BackgroundColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Rekomendasi MPASI Buat Moms Biar Ga Bingung Mau Buat Apa!",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Belum ada rekomendasi makanan. Fitur ini akan segera hadir.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 
@@ -979,4 +998,87 @@ fun AsiBarChart(data: AnalisisData) {
             }
         }
     )
+}
+
+@Composable
+fun ChildProfileHeader(
+    viewModel: PertumbuhanViewModel,
+    children: List<AnakEntity>,
+    selectedChild: AnakEntity?,
+    onChildChanged: (Int) -> Unit,
+) {
+    val childAges by viewModel.childAges.collectAsState()
+
+    Column(modifier = Modifier.padding(20.dp)) {
+        Text(
+            text = "Profil Anak",
+            style = Typography.titleLarge.copy(color = Color(0xFF0A3D62)),
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            itemsIndexed(children) { index, child ->
+                val isSelected = child.idAnak == selectedChild?.idAnak
+
+                Card(
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(100.dp)
+                        .clickable { onChildChanged(index) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) Color(0xFFE3F2FD) else Color.White
+                    ),
+                    border = BorderStroke(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        color = if (isSelected) Color(0xFF2196F3) else Color(0xFFE0E0E0)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            contentDescription = "Foto Anak",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column {
+                            Text(
+                                text = child.namaAnak,
+                                style = Typography.bodyLarge.copy(
+                                    color = Color(0xFF212121),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                            Text(
+                                text = childAges[child.idAnak]?.let { "$it" } ?: "-",
+                                style = Typography.bodySmall.copy(color = Color(0xFF757575))
+                            )
+                        }
+
+                        if (isSelected) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Terpilih",
+                                tint = Color(0xFF2196F3)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
