@@ -24,3 +24,15 @@ data class AnalisisData(
     val standarFrekuensi: Int,
     val statusFrekuensi: String
 )
+
+data class ResepRekomendasiResponse(
+    val message: String,
+    val resep: List<ResepRekomendasiItem>
+)
+
+data class ResepRekomendasiItem(
+    val id_resep: Int,
+    val nama_resep: String,
+    val foto_resep: String
+    // Kamu bisa tambah field lainnya nanti
+)
