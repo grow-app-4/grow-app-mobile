@@ -18,7 +18,7 @@ import com.example.grow.data.model.*
     NutrisiEntity::class,
     ResepNutrisiEntity::class
  ],
-    version = 11,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -7,6 +7,7 @@ import com.example.grow.data.model.KehamilanRequest
 import com.example.grow.data.model.KehamilanResponse
 import com.example.grow.data.model.UsiaKehamilanResponse
 import com.example.grow.data.remote.KehamilanApiService
+import com.example.grow.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class KehamilanViewModel @Inject constructor(
+    private val userRepository: UserRepository,
     private val api: KehamilanApiService
 ) : ViewModel() {
 
@@ -30,6 +32,9 @@ class KehamilanViewModel @Inject constructor(
 
     private val _usiaKehamilan = MutableStateFlow<UsiaKehamilanResponse?>(null)
     val usiaKehamilan: StateFlow<UsiaKehamilanResponse?> = _usiaKehamilan
+
+    private val _namaPengguna = MutableStateFlow<String?>(null)
+    val namaPengguna: StateFlow<String?> = _namaPengguna.asStateFlow()
 
     fun tambahKehamilan(idUser: Int, tanggal: String, berat: Float) {
         viewModelScope.launch {
@@ -62,6 +67,14 @@ class KehamilanViewModel @Inject constructor(
                 e.printStackTrace()
                 Log.e("KehamilanViewModel", "Exception: ${e.message}")
                 _usiaKehamilan.value = null
+            }
+        }
+    }
+    fun loadUserData(userId: Int) {
+        viewModelScope.launch {
+            // Ambil data pengguna dari repository
+            userRepository.getUserById(userId).collect { user ->
+                _namaPengguna.value = user?.name ?: "Nama Pengguna"
             }
         }
     }

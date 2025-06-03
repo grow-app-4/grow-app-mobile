@@ -93,6 +93,7 @@ fun NutrisiScreen(
         mutableStateOf(tanggalFromArg ?: tanggalHariIni)
     }
 
+    val namaPengguna by viewModelKehamilan.namaPengguna.collectAsState()
     val sudahAdaAsupan by viewModelAsupan.asupanHariIni.collectAsState()
     val usiaKehamilan by viewModelKehamilan.usiaKehamilan.collectAsState()
     val makananList by viewModelAsupan.makananIbuData
@@ -143,6 +144,7 @@ fun NutrisiScreen(
         viewModelAsupan.setTanggalDipilih(selectedDate)
         viewModelAsupan.checkAsupanHariIni(userId, selectedDate)
         viewModelKehamilan.loadUsiaKehamilan(userId)
+        viewModelKehamilan.loadUserData(userId)
         viewModelAsupan.fetchMakananIbu(userId, selectedDate)
     }
 
@@ -259,7 +261,7 @@ fun NutrisiScreen(
 
                                 Column {
                                     Text(
-                                        text = "Wulan bin Fulan",
+                                        text = namaPengguna ?: "Memuat...",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = BiruText

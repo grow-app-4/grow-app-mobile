@@ -59,6 +59,7 @@ class PertumbuhanViewModel @Inject constructor(
                 _children.value = result
                 isEmptyChildren.value = result.isEmpty()
                 _selectedChildIndex.value = 0
+                calculateChildAges(result)
             } catch (e: Exception) {
                 Log.e("ViewModel", "Error loading children: ${e.message}")
                 _children.value = emptyList()
