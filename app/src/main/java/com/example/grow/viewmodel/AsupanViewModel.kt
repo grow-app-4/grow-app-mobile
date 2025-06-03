@@ -3,6 +3,8 @@ package com.example.grow.viewmodel
 import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.data.model.Makanan
@@ -13,6 +15,8 @@ import com.example.grow.data.model.AnalisisData
 import com.example.grow.data.model.AsupanAsi
 import com.example.grow.data.model.MakananIbu
 import com.example.grow.data.model.NutrisiAnalisisResponse
+import com.example.grow.data.model.ResepRekomendasiItem
+import com.example.grow.data.model.ResepRekomendasiResponse
 import com.example.grow.data.model.StandarNutrisi
 import com.example.grow.data.remote.AsupanApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,6 +26,10 @@ import javax.inject.Inject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+
 
 @HiltViewModel
 class AsupanViewModel @Inject constructor(
@@ -76,6 +84,38 @@ class AsupanViewModel @Inject constructor(
 
     private val _usiaAnak = mutableStateOf("")
     val usiaAnak: State<String> = _usiaAnak
+
+    // Resep rekomendasi
+    var resepList by mutableStateOf(listOf<ResepRekomendasiItem>())
+        private set
+
+    var isLoadingResep by mutableStateOf(false)
+    var errorMessageResep by mutableStateOf<String?>(null)
+
+    fun fetchResep(idAnak: String, tanggalKonsumsi: String) {
+        isLoadingResep = true
+        val body = mapOf("id_anak" to idAnak, "tanggal_konsumsi" to tanggalKonsumsi)
+
+        asupanApi.getResep(body).enqueue(object : Callback<ResepRekomendasiResponse> {
+            override fun onResponse(
+                call: Call<ResepRekomendasiResponse>,
+                response: Response<ResepRekomendasiResponse>
+            ) {
+                isLoadingResep = false
+                if (response.isSuccessful) {
+                    resepList = response.body()?.resep ?: emptyList()
+                    errorMessageResep = null
+                } else {
+                    errorMessageResep = "Gagal mengambil data: ${response.message()}"
+                }
+            }
+
+            override fun onFailure(call: Call<ResepRekomendasiResponse>, t: Throwable) {
+                isLoadingResep = false
+                errorMessageResep = "Terjadi kesalahan jaringan: ${t.localizedMessage}"
+            }
+        })
+    }
 
     fun setTanggalDipilih(tanggal: String) {
         _tanggalDipilih.value = tanggal

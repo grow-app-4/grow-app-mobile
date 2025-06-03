@@ -5,6 +5,7 @@ import com.example.grow.data.model.CheckAsupanResponse
 import com.example.grow.data.model.MakananIbu
 import com.example.grow.data.model.AsupanAsi
 import com.example.grow.data.model.NutrisiAnalisisResponse
+import com.example.grow.data.model.ResepRekomendasiResponse
 import com.example.grow.data.model.StandarNutrisi
 import retrofit2.Response
 import retrofit2.http.Body
@@ -12,6 +13,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.Call
 
 interface AsupanApiService {
     @POST("analisis-asupan")
@@ -47,4 +49,7 @@ interface AsupanApiService {
         @Path("idAnak") idAnak: Int,
         @Query("tanggal") tanggal: String
     ): Response<AsupanAsi?>
+
+    @POST("makanan-anak/getResep")
+    fun getResep(@Body body: Map<String, String>): Call<ResepRekomendasiResponse>
 }

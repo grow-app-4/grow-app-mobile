@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.CheckCircle
@@ -59,6 +60,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.example.grow.data.AnakEntity
+
+import coil.compose.AsyncImage
 
 // Import colors dari theme
 import com.example.grow.ui.theme.BiruPrimer
@@ -113,6 +116,11 @@ fun NutrisiScreen(
     val dataSudahAda by viewModelAsupan.dataSudahAda.collectAsState()
     val usiaAnak by viewModelAsupan.usiaAnak
 
+    //resep rekomendasi
+    val isLoadingResep = viewModelAsupan.isLoadingResep
+    val errorMessageResep = viewModelAsupan.errorMessageResep
+    val resepList = viewModelAsupan.resepList
+
     var showDatePicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(userId) {
@@ -127,6 +135,7 @@ fun NutrisiScreen(
     LaunchedEffect(tanggalKonsumsi, selectedChild?.idAnak) {
         selectedChild?.idAnak?.let { idAnak ->
             viewModelAsupan.getAsupanAnakByIdAnakAndTanggal(idAnak, tanggalKonsumsi)
+            viewModelAsupan.fetchResep(idAnak.toString(), tanggalKonsumsi)
         }
     }
 
@@ -797,16 +806,73 @@ fun NutrisiScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Rekomendasi MPASI Buat Moms Biar Ga Bingung Mau Buat Apa!",
+                                text = "Rekomendasi MPASI Buat Moms Biar Ga Bingung Mau Buat Apa, rekomendasi ini berdasarkan usia si kecil ya Moms!",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Belum ada rekomendasi makanan. Fitur ini akan segera hadir.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                            when {
+                                isLoadingResep -> {
+                                    CircularProgressIndicator(modifier = Modifier.padding(8.dp))
+                                }
+                                errorMessageResep != null -> {
+                                    Text(
+                                        text = errorMessageResep ?: "Terjadi kesalahan",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                resepList.isEmpty() -> {
+                                    Text(
+                                        text = "Belum ada rekomendasi makanan ditemukan.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                else -> {
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    ) {
+                                        items(resepList) { resep ->
+                                            Card(
+                                                shape = RoundedCornerShape(12.dp),
+                                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                                                modifier = Modifier
+                                                    .width(180.dp)
+                                                    .wrapContentHeight()
+                                                    .clickable {
+                                                        navController.navigate("resep_detail/${resep.id_resep}")
+                                                    }
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier.padding(12.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    // Ganti IP sesuai alamat server kamu jika perlu
+                                                    val imageUrl = "https://9632-180-244-133-142.ngrok-free.app/storage/resep/${resep.foto_resep}"
+                                                    AsyncImage(
+                                                        model = imageUrl,
+                                                        contentDescription = resep.nama_resep,
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier
+                                                            .height(100.dp)
+                                                            .fillMaxWidth()
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                    )
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Text(
+                                                        text = resep.nama_resep,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -944,9 +1010,9 @@ fun generatePesanAnalisis(
 ): String {
     val kategoriUsia = getKategoriUsiaDanStandar(usiaAnak).first
     return if (jumlahPorsi >= standar) {
-        "Anak kamu sekarang berusia sekitar $kategoriUsia, yang dimana harus diberi ASI setidaknya $standar kali sehari, dan dari data, anak kamu sudah memenuhinya. Jangan lupa untuk diberikan ASI dengan tingkat pemberian yang sama di hari berikutnya!"
+        "Anak Moms sekarang berusia sekitar $kategoriUsia, yang dimana harus diberi ASI setidaknya $standar kali sehari, dan dari data, anak Moms sudah memenuhinya. Jangan lupa untuk diberikan ASI dengan tingkat pemberian yang sama di hari berikutnya!"
     } else {
-        "Anak kamu sekarang berusia sekitar $kategoriUsia, yang dimana harus diberi ASI setidaknya $standar kali sehari, dan dari data, dapat dilihat bahwa anak kamu belum memenuhi pemberian ASI-nya. Jangan lupa untuk diberikan ASI sesuai dengan standar pemberian ASI pada hari berikutnya!"
+        "Anak Moms sekarang berusia sekitar $kategoriUsia, yang dimana harus diberi ASI setidaknya $standar kali sehari, dan dari data, dapat dilihat bahwa anak Moms belum memenuhi pemberian ASI-nya. Jangan lupa untuk diberikan ASI sesuai dengan standar pemberian ASI pada hari berikutnya!"
     }
 }
 
