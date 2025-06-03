@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
@@ -26,7 +27,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.grow.R
-import com.example.grow.data.model.Resep
 import com.example.grow.ui.components.FilterDialog
 import com.example.grow.viewmodel.ResepViewModel
 
@@ -39,19 +39,14 @@ fun BookmarkResepScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showFilterDialog by remember { mutableStateOf(false) }
 
-    var selectedTimeFilter by remember { mutableStateOf("All") }
-    var selectedRatingFilter by remember { mutableStateOf<Int?>(null) }
-    var selectedCategoryFilter by remember { mutableStateOf("All") }
-
     val bookmarkedResepIds by viewModel.bookmarkedResepIds.collectAsState()
-    val resepList by viewModel.resepList.collectAsState()
+    val filteredResepList by viewModel.resepList.collectAsState()
+    val selectedTimeFilter by viewModel.selectedTimeFilter.collectAsState()
+    val selectedRatingFilter by viewModel.selectedRatingFilter.collectAsState()
+    val selectedCategoryFilter by viewModel.selectedCategoryFilter.collectAsState()
 
-    val filteredResepList = resepList.filter {
-        bookmarkedResepIds.contains(it.idResep) &&
-                (searchQuery.isEmpty() || it.namaResep.contains(searchQuery, ignoreCase = true)) &&
-                (selectedTimeFilter == "All" || (selectedTimeFilter == "Popularity" && it.rating?.let { r -> r >= 4.0 } ?: false)) &&
-                (selectedRatingFilter?.let { rating -> it.rating?.toInt() == rating } ?: true) &&
-                (selectedCategoryFilter == "All" || it.namaKategori == selectedCategoryFilter)
+    val filteredBookmarks = viewModel.getFilteredResepList(searchQuery).filter {
+        bookmarkedResepIds.contains(it.idResep)
     }
 
     Scaffold(
@@ -102,37 +97,37 @@ fun BookmarkResepScreen(
                 if (selectedTimeFilter != "All") {
                     FilterChip(
                         selected = true,
-                        onClick = { selectedTimeFilter = "All" },
+                        onClick = { viewModel.setFilters("All", selectedRatingFilter, selectedCategoryFilter) },
                         label = { Text(selectedTimeFilter) },
                         trailingIcon = {
-                            Icon(painterResource(id = R.drawable.ic_close), "Hapus filter", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
                         }
                     )
                 }
                 if (selectedRatingFilter != null) {
                     FilterChip(
                         selected = true,
-                        onClick = { selectedRatingFilter = null },
+                        onClick = { viewModel.setFilters(selectedTimeFilter, null, selectedCategoryFilter) },
                         label = { Text("$selectedRatingFilter stars") },
                         trailingIcon = {
-                            Icon(painterResource(id = R.drawable.ic_close), "Hapus filter", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
                         }
                     )
                 }
                 if (selectedCategoryFilter != "All") {
                     FilterChip(
                         selected = true,
-                        onClick = { selectedCategoryFilter = "All" },
+                        onClick = { viewModel.setFilters(selectedTimeFilter, selectedRatingFilter, "All") },
                         label = { Text(selectedCategoryFilter) },
                         trailingIcon = {
-                            Icon(painterResource(id = R.drawable.ic_close), "Hapus filter", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
                         }
                     )
                 }
             }
 
             Text(
-                text = "${filteredResepList.size} hasil",
+                text = "${filteredBookmarks.size} hasil",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)
@@ -145,7 +140,7 @@ fun BookmarkResepScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(filteredResepList) { resep ->
+                items(filteredBookmarks) { resep ->
                     ResepCard(
                         resep = resep,
                         onClick = { navController.navigate("resep_detail/${resep.idResep}") },
@@ -160,9 +155,7 @@ fun BookmarkResepScreen(
             FilterDialog(
                 onDismiss = { showFilterDialog = false },
                 onFilterSelected = { time, rating, category ->
-                    selectedTimeFilter = time
-                    selectedRatingFilter = rating
-                    selectedCategoryFilter = category
+                    viewModel.setFilters(time, rating, category)
                     showFilterDialog = false
                 },
                 initialTimeFilter = selectedTimeFilter,

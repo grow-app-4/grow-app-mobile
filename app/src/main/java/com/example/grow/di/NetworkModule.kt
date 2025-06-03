@@ -1,5 +1,7 @@
 package com.example.grow.di
 
+import android.content.Context
+import android.content.SharedPreferences
 import com.example.grow.data.api.PertumbuhanApiService
 import com.example.grow.data.remote.AnakApiService
 import com.example.grow.data.remote.AuthApiService
@@ -11,11 +13,13 @@ import com.example.grow.data.remote.ResepApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -42,7 +46,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://4453-114-10-147-128.ngrok-free.app/api/")
+            .baseUrl("https://40ff-103-147-8-134.ngrok-free.app/api/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -94,5 +98,12 @@ object NetworkModule {
     @Singleton
     fun provideResepApiService(retrofit: Retrofit): ResepApiService {
         return retrofit.create(ResepApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    @Named("BookmarkPrefs")
+    fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+        return context.getSharedPreferences("bookmark_prefs", Context.MODE_PRIVATE)
     }
 }

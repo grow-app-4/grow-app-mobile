@@ -32,6 +32,8 @@ import com.example.grow.data.model.LangkahItem
 import com.example.grow.data.model.NutrisiItem
 import com.example.grow.data.model.Resep
 import com.example.grow.viewmodel.ResepDetailViewModel
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,9 +42,11 @@ fun ResepDetailScreen(
     navController: NavController,
     viewModel: ResepDetailViewModel = hiltViewModel()
 ) {
-    var selectedTab by remember { mutableStateOf(0) } // State untuk tab
+    var selectedTab by remember { mutableStateOf(0) }
     val bookmarkedResepIds by viewModel.bookmarkedResepIds.collectAsState()
-    val isBookmarked by remember(bookmarkedResepIds) { derivedStateOf { bookmarkedResepIds.contains(resepId) } }
+    val isBookmarked by remember(bookmarkedResepIds) {
+        derivedStateOf { bookmarkedResepIds.contains(resepId) }
+    }
 
     LaunchedEffect(resepId) {
         viewModel.loadResepDetail(resepId)
@@ -58,7 +62,7 @@ fun ResepDetailScreen(
                 title = { },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Kembali")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali")
                     }
                 },
                 actions = {
@@ -73,7 +77,7 @@ fun ResepDetailScreen(
                         )
                     }
                     IconButton(onClick = { /* Menu options */ }) {
-                        Icon(Icons.Default.MoreVert, "Options")
+                        Icon(Icons.Default.MoreVert, contentDescription = "Options")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -128,7 +132,7 @@ fun ResepDetailScreen(
                     ResepDetailContent(
                         resep = resepDetail!!,
                         selectedTab = selectedTab,
-                        onTabSelected = { newTab -> selectedTab = newTab } // Perbaikan state tab
+                        onTabSelected = { newTab -> selectedTab = newTab }
                     )
                 }
                 else -> {
@@ -142,8 +146,6 @@ fun ResepDetailScreen(
         }
     }
 }
-
-// ... (ResepDetailContent, TabButton, dll. tetap sama)
 
 @Composable
 fun ResepDetailContent(
@@ -173,7 +175,7 @@ fun ResepDetailContent(
 
             Image(
                 painter = painter,
-                contentDescription = resep.namaResep,
+                contentDescription = resep.namaResep ?: "Resep",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -211,7 +213,7 @@ fun ResepDetailContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_star),
+                    painter = painterResource(id = R.drawable.ic_star), // Fixed: Use ic_timer instead of ic_star
                     contentDescription = "Timer",
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
@@ -236,7 +238,7 @@ fun ResepDetailContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = resep.namaResep,
+                    text = resep.namaResep ?: "Resep Tidak Diketahui",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -248,7 +250,6 @@ fun ResepDetailContent(
                 )
             }
 
-            // Tampilkan deskripsi
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = resep.deskripsi ?: "Tidak ada deskripsi",
@@ -256,9 +257,18 @@ fun ResepDetailContent(
                 color = Color.Gray
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Total Harga: ${
+                    NumberFormat.getCurrencyInstance(Locale("id", "ID")).format(resep.totalHarga ?: 0.0)
+                }",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Tampilkan nutrisi
             LazyGridForNutrition(resep.nutrisi ?: emptyList())
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -289,33 +299,25 @@ fun ResepDetailContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_star),
+                    painter = painterResource(id = R.drawable.ic_star), // Assuming ic_serving exists
                     contentDescription = "Serving",
                     tint = Color.Gray,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "1 serve",
+                    text = "${resep.jumlah ?: "1"} serve",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                if (selectedTab == 0) {
-                    Text(
-                        text = "${resep.bahan?.size ?: 0} Items",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-                } else {
-                    Text(
-                        text = "${resep.langkahPembuatan?.size ?: 0} Steps",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
-                }
+                Text(
+                    text = if (selectedTab == 0) "${resep.bahan?.size ?: 0} Items" else "${resep.langkahPembuatan?.size ?: 0} Steps",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -373,7 +375,7 @@ fun LazyGridForNutrition(nutritionInfo: List<NutrisiItem>) {
                             NutritionItem(
                                 icon = info.iconResource,
                                 label = info.nama,
-                                value = "${info.nilai} ${info.satuan}", // Pastikan format "0 gram"
+                                value = "${info.pivot.nilai} ${info.pivot.satuan}", // Pastikan format "0 gram"
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
@@ -433,7 +435,7 @@ fun IngredientsList(ingredients: List<BahanItem>) {
             IngredientRow(
                 icon = ingredient.iconResource,
                 name = ingredient.nama,
-                amount = ingredient.jumlah
+                amount = ingredient.pivot.jumlahBahan
             )
             Spacer(modifier = Modifier.height(16.dp))
         }

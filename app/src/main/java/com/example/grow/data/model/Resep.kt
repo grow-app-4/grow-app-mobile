@@ -1,92 +1,80 @@
 package com.example.grow.data.model
 
-import androidx.annotation.DrawableRes
+import com.example.grow.R
 import com.google.gson.annotations.SerializedName
 
-// Model untuk Resep
+data class ResepResponse(
+    val data: List<Resep>
+)
+
 data class Resep(
     @SerializedName("id_resep") val idResep: String,
     @SerializedName("nama_resep") val namaResep: String,
-    @SerializedName("chef_name") val chefName: String? = "Chef GROW",
-    @SerializedName("rating") val rating: Float? = 0f,
-    @SerializedName("foto_resep") val imageUrl: String? = null,
-    @SerializedName("usia_rekomendasi") val usiaRekomendasi: String? = "N/A",
-    @SerializedName("total_harga") val totalHarga: Double = 0.0,    @SerializedName("waktu_pembuatan") val waktuPembuatan: Int? = 0,
-    @SerializedName("nama_kategori") val namaKategori: String? = "N/A",
-    @SerializedName("nutrisi") val nutrisi: List<NutrisiItem>? = emptyList(),
-    @SerializedName("bahan") val bahan: List<BahanItem>? = emptyList(),
-    @SerializedName("langkah_pembuatan") val langkahPembuatan: List<LangkahItem>? = emptyList(),
-    @SerializedName("deskripsi") val deskripsi: String? = null,
-    val isBookmarked: Boolean = false // Tetap ada untuk bookmark
+    @SerializedName("deskripsi") val deskripsi: String?,
+    @SerializedName("foto_resep") val imageUrl: String?,
+    @SerializedName("usia_rekomendasi") val usiaRekomendasi: String?,
+    @SerializedName("jumlah") val jumlah: String?,
+    @SerializedName("rating") val rating: Float?,
+    @SerializedName("waktu_pembuatan") val waktuPembuatan: Int?,
+    @SerializedName("nama_kategori") val namaKategori: String?,
+    @SerializedName("id_nutrisi") val idNutrisi: String?,
+    @SerializedName("total_harga") val totalHarga: Double?,
+    @SerializedName("nutrisi") val nutrisi: List<NutrisiItem>?,
+    @SerializedName("bahan_baku") val bahan: List<BahanItem>?,
+    @SerializedName("langkah_pembuatan") val langkahPembuatan: List<LangkahItem>?
 )
 
-// Model untuk NutrisiItem
-data class NutrisiItem(
-    @SerializedName("id_resep") val idResep: String,
-    @SerializedName("nama") val nama: String,
-    @SerializedName("nilai") val nilai: String,
-    @SerializedName("satuan") val satuan: String,
-    @DrawableRes val iconResource: Int
-)
-
-// Model untuk BahanItem
 data class BahanItem(
-    @SerializedName("id_resep") val idResep: String,
-    @SerializedName("nama") val nama: String,
-    @SerializedName("jumlah") val jumlah: String,
-    @DrawableRes val iconResource: Int
-)
+    @SerializedName("id_bahan") val idBahan: String,
+    @SerializedName("nama_bahan") val nama: String,
+    @SerializedName("satuan") val satuan: String,
+    @SerializedName("harga_bahan") val hargaBahan: Double,
+    @SerializedName("pivot") val pivot: Pivot
+) {
+    // Placeholder untuk icon, bisa disesuaikan dengan logika aplikasi
+    val iconResource: Int
+        get() = when (nama.lowercase()) {
+            "beras merah" -> R.drawable.ic_star
+            "kentang" -> R.drawable.ic_star
+            "wortel" -> R.drawable.ic_star
+            else -> R.drawable.ic_star
+        }
+}
 
-// Model untuk LangkahItem
+data class Pivot(
+    @SerializedName("jumlah_bahan") val jumlahBahan: String
+) {
+    // Format jumlah_bahan untuk tampilan
+    val jumlah: String
+        get() = "$jumlahBahan $satuan"
+
+    // Asumsi satuan ada di BahanItem, bisa disesuaikan
+    private val satuan: String
+        get() = "gram" // Ganti dengan logika sesuai kebutuhan
+}
+
 data class LangkahItem(
-    @SerializedName("id_resep") val idResep: String,
+    @SerializedName("id") val id: String,
+    @SerializedName("resep_id") val resepId: String,
     @SerializedName("nomor_langkah") val urutan: Int,
     @SerializedName("deskripsi") val deskripsi: String
 )
 
-data class ResepResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("message") val message: String,
-    @SerializedName("data") val data: List<Resep>? = emptyList()
-)
-
-data class ResepSingleResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("message") val message: String,
-    @SerializedName("data") val data: Any? = null
-)
-
-// Model untuk request ke API (tetap sama)
-data class ResepRequest(
-    @SerializedName("nama_resep") val namaResep: String,
-    @SerializedName("deskripsi") val deskripsi: String,
-    @SerializedName("foto_resep") val fotoResep: String? = null,
-    @SerializedName("usia_rekomendasi") val usiaRekomendasi: String,
-    @SerializedName("jumlah") val jumlah: Float,
-    @SerializedName("rating") val rating: Float? = null,
-    @SerializedName("waktu_pembuatan") val waktuPembuatan: Int? = null,
-    @SerializedName("nama_kategori") val namaKategori: String,
+data class NutrisiItem(
     @SerializedName("id_nutrisi") val idNutrisi: String,
-    @SerializedName("langkah_pembuatan") val langkahPembuatan: List<LangkahRequest>,
-    @SerializedName("bahan") val bahan: List<BahanRequest>
-)
+    @SerializedName("nama_nutrisi") val nama: String,
+    @SerializedName("pivot") val pivot: NutrisiPivot
+) {
+    // Placeholder untuk icon, bisa disesuaikan
+    val iconResource: Int
+        get() = when (nama.lowercase()) {
+            "protein" -> R.drawable.ic_star
+            "karbohidrat" -> R.drawable.ic_star
+            else -> R.drawable.ic_star
+        }
+}
 
-data class LangkahRequest(
-    @SerializedName("nomor_langkah") val nomorLangkah: Int,
-    @SerializedName("deskripsi") val deskripsi: String
-)
-
-data class BahanRequest(
-    @SerializedName("id_bahan") val idBahan: String,
-    @SerializedName("jumlah_bahan") val jumlahBahan: Float
-)
-
-data class TotalHargaResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("message") val message: String,
-    @SerializedName("data") val data: TotalHargaData? = null
-)
-
-data class TotalHargaData(
-    @SerializedName("total_harga") val totalHarga: Double? = 0.0
+data class NutrisiPivot(
+    @SerializedName("jumlah") val nilai: Double,
+    @SerializedName("satuan") val satuan: String
 )

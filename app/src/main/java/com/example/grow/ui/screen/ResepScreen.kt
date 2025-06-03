@@ -38,6 +38,7 @@ fun ResepScreen(
     navController: NavController,
     viewModel: ResepViewModel = hiltViewModel()
 ) {
+
     var searchQuery by remember { mutableStateOf("") }
     var showFilterDialog by remember { mutableStateOf(false) }
 
@@ -106,7 +107,7 @@ fun ResepScreen(
                     FilterChip(
                         selected = true,
                         onClick = { viewModel.setFilters("All", selectedRatingFilter, selectedCategoryFilter) },
-                        label = { Text(selectedTimeFilter) },
+                        label = { Text(selectedTimeFilter ?: "Unknown") },
                         trailingIcon = {
                             Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
                         }
@@ -126,7 +127,7 @@ fun ResepScreen(
                     FilterChip(
                         selected = true,
                         onClick = { viewModel.setFilters(selectedTimeFilter, selectedRatingFilter, "All") },
-                        label = { Text(selectedCategoryFilter) },
+                        label = { Text(selectedCategoryFilter ?: "Unknown") },
                         trailingIcon = {
                             Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
                         }
@@ -187,7 +188,11 @@ fun ResepScreen(
                             items(filteredResepList) { resep ->
                                 ResepCard(
                                     resep = resep,
-                                    onClick = { navController.navigate("resep_detail/${resep.idResep}") },
+                                    onClick = {
+                                        if (resep.idResep.isNotEmpty()) {
+                                            navController.navigate("resep_detail/${resep.idResep}")
+                                        }
+                                    },
                                     isBookmarked = bookmarkedResepIds.contains(resep.idResep),
                                     onBookmarkClick = { viewModel.toggleBookmark(resep) }
                                 )
@@ -307,7 +312,7 @@ fun ResepCard(
                     .padding(12.dp)
             ) {
                 Text(
-                    resep.namaResep,
+                    text = resep.namaResep ?: "Resep Tidak Diketahui",
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,

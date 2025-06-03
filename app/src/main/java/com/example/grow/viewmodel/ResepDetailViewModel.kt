@@ -1,58 +1,33 @@
 package com.example.grow.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.data.model.Resep
-import com.example.grow.data.repository.BookmarkRepository
 import com.example.grow.data.repository.ResepRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ResepDetailViewModel @Inject constructor(
-    private val resepRepository: ResepRepository,
-    private val bookmarkRepository: BookmarkRepository
+    private val repository: ResepRepository
 ) : ViewModel() {
 
-    private val _resepDetail = MutableStateFlow<Resep?>(null)
-    val resepDetail: StateFlow<Resep?> = _resepDetail.asStateFlow()
+    val resepDetail: StateFlow<Resep?> = repository.resepDetail
+    val bookmarkedResepIds: StateFlow<Set<String>> = repository.bookmarkedResepIds
+    val loading: StateFlow<Boolean> = repository.loading
+    val error: StateFlow<String?> = repository.error
 
-    private val _loading = MutableStateFlow(false)
-    val loading: StateFlow<Boolean> = _loading.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
-
-    val bookmarkedResepIds = bookmarkRepository.bookmarkedResepIds
-
-    fun loadResepDetail(resepId: String) {
+    fun loadResepDetail(id: String) {
+        Log.d("ResepDetailViewModel", "loadResepDetail called with id: $id")
         viewModelScope.launch {
-            _loading.value = true
-            _error.value = null
-            try {
-                // Gunakan method baru yang mendapatkan semua data sekaligus
-                val resep = resepRepository.getResepDetail(resepId)
-                _resepDetail.value = resep.copy(
-                    isBookmarked = bookmarkRepository.isBookmarked(resepId)
-                )
-            } catch (e: Exception) {
-                _error.value = "Error mengambil detail resep: ${e.message}"
-            } finally {
-                _loading.value = false
-            }
+            repository.loadResepDetail(id)
         }
     }
 
     fun toggleBookmark(resep: Resep) {
-        viewModelScope.launch {
-            bookmarkRepository.toggleBookmark(resep)
-            _resepDetail.value = _resepDetail.value?.copy(
-                isBookmarked = bookmarkRepository.isBookmarked(resep.idResep)
-            )
-        }
+        repository.toggleBookmark(resep)
     }
 }
