@@ -1,6 +1,7 @@
 package com.example.grow.ui.screen
 
 import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -16,12 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import coil.compose.rememberAsyncImagePainter
+import com.example.grow.R
 import com.example.grow.ui.viewmodel.ProfileUpdateViewModel
 import com.example.grow.util.SessionManager
 import com.example.grow.viewmodel.AuthViewModel
@@ -29,13 +33,17 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavHostController, viewModel: AuthViewModel = hiltViewModel(), profileViewModel: ProfileUpdateViewModel = hiltViewModel()) {
+fun ProfileScreen(
+    navController: NavHostController,
+    viewModel: AuthViewModel = hiltViewModel(),
+    profileViewModel: ProfileUpdateViewModel = hiltViewModel()
+) {
     val context = LocalContext.current
     val userId = SessionManager.getUserId(context)
     val token = SessionManager.getToken(context)
     var showLogoutDialog by remember { mutableStateOf(false) }
-
     val user by viewModel.getUserById(userId).collectAsState(initial = null)
+    val profileUiState by profileViewModel.uiState.collectAsState()
 
     LaunchedEffect(userId, token) {
         if (token != null && userId != 0) {
@@ -43,7 +51,6 @@ fun ProfileScreen(navController: NavHostController, viewModel: AuthViewModel = h
         }
     }
 
-    // Logout confirmation dialog
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -86,6 +93,7 @@ fun ProfileScreen(navController: NavHostController, viewModel: AuthViewModel = h
             ProfileHeader(
                 name = user?.name,
                 email = user?.email,
+                profileImageUri = profileUiState.profileImageUri?.toString(),
                 onEditClick = { navController.navigate(Screen.ProfileUpdate.route) }
             )
 
@@ -122,6 +130,7 @@ fun ProfileScreen(navController: NavHostController, viewModel: AuthViewModel = h
 private fun ProfileHeader(
     name: String?,
     email: String?,
+    profileImageUri: String?,
     onEditClick: () -> Unit
 ) {
     Card(
@@ -144,14 +153,24 @@ private fun ProfileHeader(
                     .clip(CircleShape)
                     .background(Color(0xFFD6E7FF))
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profile",
-                    modifier = Modifier
-                        .size(65.dp)
-                        .align(Alignment.Center),
-                    tint = Color(0xFF5C95FF)
-                )
+                if (profileImageUri != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(profileImageUri),
+                        contentDescription = "Profile",
+                        modifier = Modifier
+                            .size(110.dp)
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile",
+                        modifier = Modifier
+                            .size(65.dp)
+                            .align(Alignment.Center),
+                        tint = Color(0xFF5C95FF)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

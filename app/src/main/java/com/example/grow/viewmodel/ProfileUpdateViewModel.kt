@@ -1,5 +1,6 @@
 package com.example.grow.ui.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.data.UserEntity
@@ -22,6 +23,7 @@ class ProfileUpdateViewModel @Inject constructor(
         val originalUser: UserEntity? = null,
         val name: String = "",
         val email: String = "",
+        val profileImageUri: Uri? = null,
         val isLoading: Boolean = false,
         val errorMessage: String? = null,
         val isUpdateSuccess: Boolean = false
@@ -40,15 +42,14 @@ class ProfileUpdateViewModel @Inject constructor(
             }
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             try {
-                // Fetch from API dan update local db dengan token
                 userRepository.fetchUserFromApi(token, userId)
-                // Observe local db
                 userRepository.getUserById(userId).collect { userEntity ->
                     if (userEntity != null) {
                         _uiState.value = _uiState.value.copy(
                             originalUser = userEntity,
                             name = userEntity.name,
                             email = userEntity.email,
+                            profileImageUri = userEntity.profileImageUri?.let { Uri.parse(it) },
                             isLoading = false
                         )
                     } else {
@@ -72,56 +73,67 @@ class ProfileUpdateViewModel @Inject constructor(
         }
     }
 
-    fun updateUser(token: String, userId: Int) {
+    fun updateProfileImageUri(uri: Uri?) {
+        _uiState.value = _uiState.value.copy(profileImageUri = uri)
+    }
+
+    fun updateUser(token: String, userId: Int, context: android.content.Context) {
         viewModelScope.launch {
             val state = _uiState.value
             val originalUser = state.originalUser
 
             if (originalUser == null) {
-                _uiState.value = state.copy(
-                    errorMessage = "Data pengguna belum dimuat"
-                )
+                _uiState.value = state.copy(errorMessage = "Data pengguna belum dimuat")
                 return@launch
             }
 
             if (userId == 0) {
-                _uiState.value = state.copy(
-                    errorMessage = "ID pengguna tidak valid"
-                )
+                _uiState.value = state.copy(errorMessage = "ID pengguna tidak valid")
                 return@launch
             }
 
-            val hasChanges = state.name != originalUser.name || state.email != originalUser.email
+            val hasChanges = state.name != originalUser.name ||
+                    state.email != originalUser.email ||
+                    state.profileImageUri?.toString() != originalUser.profileImageUri
+
             if (!hasChanges) {
-                _uiState.value = state.copy(
-                    errorMessage = "Tidak ada perubahan untuk disimpan"
-                )
+                _uiState.value = state.copy(errorMessage = "Tidak ada perubahan untuk disimpan")
                 return@launch
             }
 
             if (!validateInputs(state)) {
-                _uiState.value = state.copy(
-                    errorMessage = "Harap masukkan data yang valid"
-                )
+                _uiState.value = state.copy(errorMessage = "Harap masukkan data yang valid")
                 return@launch
             }
 
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
-            val userEntity = UserEntity(
-                id = userId,
-                name = state.name,
-                email = state.email
-            )
             try {
-                userRepository.updateUser(token, userEntity)  // <-- pakai token
+                var profileImageUrl: String? = originalUser.profileImageUri
+                state.profileImageUri?.let { uri ->
+                    if (uri.toString() != originalUser.profileImageUri) {
+                        profileImageUrl = userRepository.uploadProfileImage(token, userId, uri, context)
+                    }
+                }
+                val userEntity = UserEntity(
+                    id = userId,
+                    name = state.name,
+                    email = state.email,
+                    profileImageUri = profileImageUrl
+                )
+                userRepository.updateUser(token, userEntity)
                 _uiState.value = state.copy(
                     isLoading = false,
                     isUpdateSuccess = true,
                     errorMessage = null
                 )
             } catch (e: IOException) {
-                // Save locally on network failure
                 try {
+                    val userEntity = UserEntity(
+                        id = userId,
+                        name = state.name,
+                        email = state.email,
+                        profileImageUri = state.profileImageUri?.toString()
+                    )
                     userRepository.saveLocalUser(userEntity)
                     _uiState.value = state.copy(
                         isLoading = false,
@@ -152,13 +164,11 @@ class ProfileUpdateViewModel @Inject constructor(
     }
 
     private fun validateInputs(state: UiState): Boolean {
-        // Validate name if changed
         if (state.name.isNotBlank() && state.name != state.originalUser?.name) {
-            if (state.name.length < 2) return false // Minimum 2 characters
-            if (!state.name.matches(Regex("^[a-zA-Z ]+$"))) return false // Letters and spaces only
+            if (state.name.length < 2) return false
+            if (!state.name.matches(Regex("^[a-zA-Z ]+$"))) return false
         }
 
-        // Validate email if changed
         if (state.email.isNotBlank() && state.email != state.originalUser?.email) {
             val emailPattern = Pattern.compile(
                 "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"

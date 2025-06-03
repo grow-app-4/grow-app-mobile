@@ -1,8 +1,12 @@
 package com.example.grow.ui.screen
 
 import android.app.DatePickerDialog
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
+import com.example.grow.R
 import com.example.grow.ui.theme.*
 import com.example.grow.ui.viewmodel.PertumbuhanViewModel
 import java.util.Calendar
@@ -46,7 +54,18 @@ fun EditAnakScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isLakiLakiSelected by remember { mutableStateOf(false) }
     var isPerempuanSelected by remember { mutableStateOf(false) }
+    var profileImageUri by remember { mutableStateOf<Uri?>(null) } // Tambahkan state untuk URI gambar
     val context = LocalContext.current
+
+    // Launcher untuk memilih gambar
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            profileImageUri = it
+            viewModel.updateProfileImageUri(anakId, it) // Update di ViewModel jika diperlukan
+        }
+    }
 
     val isFormValid = namaAnak.isNotBlank() &&
             tanggalLahir.isNotBlank() &&
@@ -61,6 +80,7 @@ fun EditAnakScreen(
                 namaAnak = anak.namaAnak
                 tanggalLahir = anak.tanggalLahir
                 jenisKelamin = anak.jenisKelamin
+                profileImageUri = anak.profileImageUri?.let { Uri.parse(it) } // Load URI gambar
                 isLakiLakiSelected = anak.jenisKelamin == "L"
                 isPerempuanSelected = anak.jenisKelamin == "P"
                 isLoading = false
@@ -120,8 +140,56 @@ fun EditAnakScreen(
                     .padding(paddingValues)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Profile Picture
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    Box(
+                        modifier = Modifier
+                            .size(140.dp)
+                            .clip(CircleShape)
+                            .background(LightBlue),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (profileImageUri != null) {
+                            Image(
+                                painter = rememberAsyncImagePainter(profileImageUri),
+                                contentDescription = "Child Avatar",
+                                modifier = Modifier
+                                    .size(140.dp)
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_star), // Ganti dengan placeholder anak
+                                contentDescription = "Default Child Avatar",
+                                modifier = Modifier.size(100.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { pickImageLauncher.launch("image/*") },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Blue)
+                            .border(2.dp, Color.White, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Child Picture",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(36.dp))
+
                 InputLabel(text = "Nama Lengkap")
                 OutlinedTextField(
                     value = namaAnak,
@@ -218,6 +286,7 @@ fun EditAnakScreen(
                             nama = namaAnak,
                             tanggalLahir = tanggalLahir,
                             jenisKelamin = jenisKelamin,
+                            profileImageUri = profileImageUri?.toString(), // Tambahkan URI gambar
                             userId = userId,
                             context = context,
                             onSuccess = {

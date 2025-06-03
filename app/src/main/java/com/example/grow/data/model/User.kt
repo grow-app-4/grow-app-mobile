@@ -9,5 +9,6 @@ data class UserResponse(
 data class UserApiModel(
     val id: Int,
     val name: String,
-    val email: String
+    val email: String,
+    val profileImageUri: String? = null
 )
