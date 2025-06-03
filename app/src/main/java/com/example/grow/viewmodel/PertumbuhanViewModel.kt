@@ -3,6 +3,7 @@ package com.example.grow.ui.viewmodel
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -265,6 +266,7 @@ class PertumbuhanViewModel @Inject constructor(
         nama: String,
         tanggalLahir: String,
         jenisKelamin: String,
+        profileImageUri: String?,
         userId: Int,
         context: Context,
         onSuccess: () -> Unit,
@@ -281,7 +283,8 @@ class PertumbuhanViewModel @Inject constructor(
                     idUser = userId,
                     namaAnak = nama,
                     tanggalLahir = tanggalLahir,
-                    jenisKelamin = jenisKelamin
+                    jenisKelamin = jenisKelamin,
+                    profileImageUri = profileImageUri
                 )
                 anakRepository.updateAnak(anakEntity)
                 loadChildren(userId)
@@ -327,6 +330,11 @@ class PertumbuhanViewModel @Inject constructor(
             loadLatestPertumbuhan(pertumbuhan.idAnak)
             loadStatusStunting(pertumbuhan.idAnak) // Tambahkan untuk memperbarui AnalysisResultCard
         }
+    }
+
+    fun updateProfileImageUri(anakId: Int, uri: Uri?) {
+        // Implementasi sementara untuk menyimpan URI di ViewModel atau langsung ke repository
+        // Anda mungkin ingin menyimpan ini ke state sementara atau langsung ke database
     }
 
     fun deletePertumbuhan(idPertumbuhan: Int, idAnak: Int) {

@@ -9,5 +9,6 @@ data class AnakEntity(
     val idUser: Int,
     val namaAnak: String,
     val jenisKelamin: String,
-    val tanggalLahir: String
+    val tanggalLahir: String,
+    val profileImageUri: String? = null
 )

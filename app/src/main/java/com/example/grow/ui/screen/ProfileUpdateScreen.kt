@@ -1,5 +1,8 @@
 package com.example.grow.ui.screen
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import com.example.grow.R
 import com.example.grow.ui.theme.*
 import com.example.grow.ui.viewmodel.ProfileUpdateViewModel
@@ -41,11 +45,23 @@ fun ProfileUpdateScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val userId = SessionManager.getUserId(context)
-    val token = SessionManager.getToken(context) // Ambil token juga
+    val token = SessionManager.getToken(context)
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Load user data ketika screen pertama kali tampil
+    // State untuk URI gambar profil
+    var profileImageUri by remember { mutableStateOf<Uri?>(uiState.profileImageUri) }
+
+    // Launcher untuk memilih gambar
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            profileImageUri = it
+            viewModel.updateProfileImageUri(it)
+        }
+    }
+
     LaunchedEffect(userId, token) {
         if (token != null && userId != 0) {
             viewModel.loadUserData(token, userId)
@@ -56,7 +72,6 @@ fun ProfileUpdateScreen(
         }
     }
 
-    // Tampilkan pesan error jika ada
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { message ->
             coroutineScope.launch {
@@ -74,7 +89,6 @@ fun ProfileUpdateScreen(
         }
     }
 
-    // Jika update sukses, kembali ke layar sebelumnya
     LaunchedEffect(uiState.isUpdateSuccess) {
         if (uiState.isUpdateSuccess) {
             navController.navigateUp()
@@ -114,7 +128,6 @@ fun ProfileUpdateScreen(
         containerColor = Color.White,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-
         if (uiState.isLoading && uiState.originalUser == null) {
             Box(
                 modifier = Modifier
@@ -144,15 +157,25 @@ fun ProfileUpdateScreen(
                             .background(LightBlue),
                         contentAlignment = Alignment.Center
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_star),
-                            contentDescription = "User Avatar",
-                            modifier = Modifier.size(100.dp)
-                        )
+                        if (profileImageUri != null) {
+                            Image(
+                                painter = rememberAsyncImagePainter(profileImageUri),
+                                contentDescription = "User Avatar",
+                                modifier = Modifier
+                                    .size(140.dp)
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_star),
+                                contentDescription = "Default User Avatar",
+                                modifier = Modifier.size(100.dp)
+                            )
+                        }
                     }
 
                     IconButton(
-                        onClick = { /* TODO: Edit profile picture */ },
+                        onClick = { pickImageLauncher.launch("image/*") },
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
@@ -170,12 +193,11 @@ fun ProfileUpdateScreen(
 
                 Spacer(modifier = Modifier.height(36.dp))
 
-                // Form Fields
+                // Form Fields (tetap seperti sebelumnya)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.Start
                 ) {
-                    // Nama Field
                     InputLabel(text = "Nama")
                     OutlinedTextField(
                         value = uiState.name,
@@ -197,7 +219,6 @@ fun ProfileUpdateScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Email Field
                     InputLabel(text = "Email")
                     OutlinedTextField(
                         value = uiState.email,
@@ -220,11 +241,10 @@ fun ProfileUpdateScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Perbarui Button
                 Button(
                     onClick = {
                         if (token != null) {
-                            viewModel.updateUser(token, userId)
+                            viewModel.updateUser(token, userId, context)
                         } else {
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar("Token tidak tersedia, silakan login ulang")
