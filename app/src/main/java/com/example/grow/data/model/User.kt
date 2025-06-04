@@ -16,5 +16,5 @@ data class UserApiModel(
 data class UserUpdateRequest(
     val name: String?,
     val email: String?,
-    val profile_photo: String? = null // Support null for removing photo
+    val profile_photo: String? = null
 )
