@@ -441,6 +441,16 @@ fun FoodEntryCard(
             if (selectedMakanan != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
+                    text = "Ukuran Umpama per-porsi: ${selectedMakanan.ukuran_porsi_umpama}",
+                    style = TextStyle(
+                        fontFamily = PoppinsFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 14.sp,
+                        color = TextPrimary
+                    )
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
                     text = "Ukuran / Porsi",
                     modifier = Modifier.padding(bottom = 8.dp),
                     style = TextStyle(
