@@ -49,17 +49,6 @@ class AnakViewModel @Inject constructor(
         }
     }
 
-    // Fungsi untuk mengupdate anak
-    fun updateAnak(anak: AnakEntity) {
-        viewModelScope.launch {
-            try {
-                anakRepository.updateAnak(anak)
-            } catch (e: Exception) {
-                Log.e("AnakViewModel", "Error updating anak: ${e.message}")
-            }
-        }
-    }
-
     // Fungsi untuk menghapus anak
     fun deleteAnak(anak: AnakEntity) {
         viewModelScope.launch {

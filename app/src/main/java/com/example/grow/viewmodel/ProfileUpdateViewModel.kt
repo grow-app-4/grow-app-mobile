@@ -1,5 +1,6 @@
 package com.example.grow.ui.viewmodel
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -73,11 +74,7 @@ class ProfileUpdateViewModel @Inject constructor(
         }
     }
 
-    fun updateProfileImageUri(uri: Uri?) {
-        _uiState.value = _uiState.value.copy(profileImageUri = uri)
-    }
-
-    fun updateUser(token: String, userId: Int, context: android.content.Context) {
+    fun updateUser(token: String, userId: Int, context: Context) {
         viewModelScope.launch {
             val state = _uiState.value
             val originalUser = state.originalUser
@@ -108,19 +105,13 @@ class ProfileUpdateViewModel @Inject constructor(
 
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
             try {
-                var profileImageUrl: String? = originalUser.profileImageUri
-                state.profileImageUri?.let { uri ->
-                    if (uri.toString() != originalUser.profileImageUri) {
-                        profileImageUrl = userRepository.uploadProfileImage(token, userId, uri, context)
-                    }
-                }
                 val userEntity = UserEntity(
                     id = userId,
                     name = state.name,
                     email = state.email,
-                    profileImageUri = profileImageUrl
+                    profileImageUri = state.profileImageUri?.toString()
                 )
-                userRepository.updateUser(token, userEntity)
+                userRepository.updateUser(token, userEntity, state.profileImageUri, context)
                 _uiState.value = state.copy(
                     isLoading = false,
                     isUpdateSuccess = true,
@@ -161,6 +152,10 @@ class ProfileUpdateViewModel @Inject constructor(
 
     fun updateEmail(email: String) {
         _uiState.value = _uiState.value.copy(email = email.trim())
+    }
+
+    fun updateProfileImage(uri: Uri?) {
+        _uiState.value = _uiState.value.copy(profileImageUri = uri)
     }
 
     private fun validateInputs(state: UiState): Boolean {

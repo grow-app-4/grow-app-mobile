@@ -1,5 +1,7 @@
 package com.example.grow.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -24,6 +26,7 @@ class UpdateDataAnakViewModel @Inject constructor(
         val name: String = "",
         val birthDate: String = "",
         val gender: String? = null,
+        val profileImageUri: Uri? = null,
         val isLoading: Boolean = false,
         val errorMessage: String? = null,
         val isUpdateSuccess: Boolean = false
@@ -73,72 +76,59 @@ class UpdateDataAnakViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(gender = gender)
     }
 
-    fun updateChild(userId: Int, anakId: Int) {
+    fun updateProfileImage(uri: Uri?) {
+        _uiState.value = _uiState.value.copy(profileImageUri = uri)
+    }
+
+    fun updateChild(userId: Int, anakId: Int, context: Context) {
         viewModelScope.launch {
             val state = _uiState.value
             val originalChild = state.originalChild
 
-            Log.d("UpdateChild", "Memulai proses update anak (userId=$userId, anakId=$anakId)")
+            Log.d("UpdateChild", "State: name=${state.name}, birthDate=${state.birthDate}, gender=${state.gender}, profileImageUri=${state.profileImageUri}")
 
             if (originalChild == null) {
-                Log.d("UpdateChild", "Gagal: Data anak belum dimuat")
-                _uiState.value = state.copy(
-                    errorMessage = "Data anak belum dimuat"
-                )
+                _uiState.value = state.copy(errorMessage = "Data anak belum dimuat")
                 return@launch
             }
 
             // Periksa apakah ada perubahan
             val hasChanges = state.name != originalChild.namaAnak ||
                     state.birthDate != originalChild.tanggalLahir ||
-                    state.gender != originalChild.jenisKelamin
-
-            Log.d("UpdateChild", "Perubahan terdeteksi: $hasChanges")
+                    state.gender != originalChild.jenisKelamin ||
+                    state.profileImageUri?.toString() != originalChild.profileImageUri
 
             if (!hasChanges) {
-                Log.d("UpdateChild", "Tidak ada perubahan data")
-                _uiState.value = state.copy(
-                    errorMessage = "Tidak ada perubahan untuk disimpan"
-                )
+                _uiState.value = state.copy(errorMessage = "Tidak ada perubahan untuk disimpan")
                 return@launch
             }
 
             // Validasi
             if (!validateInputs(state)) {
-                Log.d("UpdateChild", "Validasi gagal")
-                _uiState.value = state.copy(
-                    errorMessage = "Harap masukkan data yang valid"
-                )
+                _uiState.value = state.copy(errorMessage = "Harap masukkan semua data yang diperlukan")
                 return@launch
             }
 
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
-            Log.d("UpdateChild", "Memulai proses penyimpanan ke database")
-
             try {
                 val anak = AnakEntity(
                     idAnak = anakId,
                     idUser = userId,
                     namaAnak = state.name,
                     jenisKelamin = state.gender ?: originalChild.jenisKelamin,
-                    tanggalLahir = state.birthDate.ifBlank { originalChild.tanggalLahir }
+                    tanggalLahir = formatTanggalLahir(state.birthDate),
+                    profileImageUri = state.profileImageUri?.toString()
                 )
 
-                Log.d("UpdateChild", "Data yang akan disimpan: $anak")
-
-                Log.d("UpdateChild", "Mengirim data ke server...")
-                anakRepository.updateAnak(anak)
-                Log.d("UpdateChild", "Berhasil update ke server")
-
-
-                Log.d("UpdateChild", "Update berhasil")
+                Log.d("UpdateChild", "Mengirim data ke repository: $anak")
+                anakRepository.updateAnak2(anak, state.profileImageUri, context)
                 _uiState.value = state.copy(
                     isLoading = false,
                     isUpdateSuccess = true,
                     errorMessage = null
                 )
             } catch (e: Exception) {
-                Log.e("UpdateChild", "Terjadi kesalahan saat update: ${e.message}", e)
+                Log.e("UpdateChild", "Error: ${e.message}", e)
                 _uiState.value = state.copy(
                     isLoading = false,
                     errorMessage = "Gagal memperbarui data anak: ${e.message}"
@@ -148,19 +138,26 @@ class UpdateDataAnakViewModel @Inject constructor(
     }
 
     private fun validateInputs(state: UiState): Boolean {
-        // Validasi nama jika diubah
-        if (state.name.isNotBlank() && state.name != state.originalChild?.namaAnak) {
-            if (state.name.length < 2) return false // Contoh: minimal 2 karakter
+        // Validasi nama
+        if (state.name.isBlank()) {
+            Log.d("UpdateChild", "Validasi gagal: Nama anak kosong")
+            return false
+        }
+        if (state.name.length < 2) {
+            Log.d("UpdateChild", "Validasi gagal: Nama anak terlalu pendek")
+            return false
         }
 
-        // Validasi tanggal lahir jika diubah
-        if (state.birthDate.isNotBlank() && state.birthDate != state.originalChild?.tanggalLahir) {
-            if (!isValidDateFormat(state.birthDate)) return false
+        // Validasi tanggal lahir
+        if (state.birthDate.isBlank() || !isValidDateFormat(state.birthDate)) {
+            Log.d("UpdateChild", "Validasi gagal: Tanggal lahir tidak valid")
+            return false
         }
 
-        // Validasi jenis kelamin jika diubah
-        if (state.gender != null && state.gender != state.originalChild?.jenisKelamin) {
-            if (state.gender !in listOf("L", "P")) return false
+        // Validasi jenis kelamin
+        if (state.gender == null || state.gender !in listOf("L", "P")) {
+            Log.d("UpdateChild", "Validasi gagal: Jenis kelamin tidak valid")
+            return false
         }
 
         return true
@@ -172,7 +169,36 @@ class UpdateDataAnakViewModel @Inject constructor(
             LocalDate.parse(date, formatter)
             true
         } catch (e: Exception) {
-            false
+            try {
+                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                LocalDate.parse(date, formatter)
+                true
+            } catch (e: Exception) {
+                Log.d("UpdateChild", "Format tanggal tidak valid: $date")
+                false
+            }
+        }
+    }
+
+    private fun formatTanggalLahir(birthDate: String): String {
+        return try {
+            val inputFormatters = listOf(
+                DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+                DateTimeFormatter.ofPattern("yyyy-MM-dd")
+            )
+            val outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+            var parsedDate: LocalDate? = null
+            for (formatter in inputFormatters) {
+                try {
+                    parsedDate = LocalDate.parse(birthDate, formatter)
+                    break
+                } catch (e: Exception) {
+                    continue
+                }
+            }
+            parsedDate?.format(outputFormatter) ?: throw IllegalArgumentException("Format tanggal tidak valid: $birthDate")
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Format tanggal tidak valid: $birthDate")
         }
     }
 

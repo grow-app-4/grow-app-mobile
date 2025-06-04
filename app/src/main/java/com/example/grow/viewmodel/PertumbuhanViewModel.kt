@@ -175,7 +175,8 @@ class PertumbuhanViewModel @Inject constructor(
                     idUser = userId,
                     namaAnak = nama,
                     tanggalLahir = tanggalLahir,
-                    jenisKelamin = jenisKelamin
+                    jenisKelamin = jenisKelamin,
+                    profileImageUri = null
                 )
                 anakRepository.addAnakWithInitialGrowth(
                     anakEntity,
@@ -267,7 +268,6 @@ class PertumbuhanViewModel @Inject constructor(
         nama: String,
         tanggalLahir: String,
         jenisKelamin: String,
-        profileImageUri: String?,
         userId: Int,
         context: Context,
         onSuccess: () -> Unit,
@@ -285,7 +285,7 @@ class PertumbuhanViewModel @Inject constructor(
                     namaAnak = nama,
                     tanggalLahir = tanggalLahir,
                     jenisKelamin = jenisKelamin,
-                    profileImageUri = profileImageUri
+                    profileImageUri = null
                 )
                 anakRepository.updateAnak(anakEntity)
                 loadChildren(userId)

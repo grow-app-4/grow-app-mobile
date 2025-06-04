@@ -1,6 +1,7 @@
 package com.example.grow.data.repository
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import com.example.grow.data.AnakDao
 import com.example.grow.data.remote.AnakApiService
@@ -11,8 +12,16 @@ import com.example.grow.data.PertumbuhanDao
 import com.example.grow.data.PertumbuhanEntity
 import com.example.grow.data.model.AnakRequest
 import com.example.grow.util.SessionManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -43,7 +52,8 @@ class AnakRepository @Inject constructor(
                         idUser = anak.idUser,
                         namaAnak = anak.namaAnak,
                         jenisKelamin = anak.jenisKelamin,
-                        tanggalLahir = anak.tanggalLahir.toString()
+                        tanggalLahir = anak.tanggalLahir.toString(),
+                        profileImageUri = anak.profileImageUri
                     )
                 }
 
@@ -53,15 +63,6 @@ class AnakRepository @Inject constructor(
                 Log.d("AnakRepository", "Data anak dari Room setelah disimpan: $anakDataFromRoom")
             }
         }
-    }
-
-    fun getChildren(userId: Int): Flow<List<AnakEntity>> {
-        return anakDao.getAnakByUserId(userId)
-    }
-
-    fun getCurrentDate(): String {
-        val sdf = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
-        return sdf.format(Date())
     }
 
     suspend fun addAnakWithInitialGrowth(
@@ -170,7 +171,6 @@ class AnakRepository @Inject constructor(
         )
     }
 
-    // Mengupdate anak di database dan API
     suspend fun updateAnak(anak: AnakEntity) {
         anakDao.updateAnak(anak)
         anakApiService.updateAnak(
@@ -182,6 +182,111 @@ class AnakRepository @Inject constructor(
                 "tanggal_lahir" to anak.tanggalLahir
             )
         )
+    }
+
+    suspend fun updateAnak2(anak: AnakEntity, profileImageUri: Uri?, context: Context) {
+        withContext(Dispatchers.IO) {
+            try {
+                // Convert date to "yyyy-MM-dd" for API
+                val formattedDate = formatTanggalLahir(anak.tanggalLahir)
+
+                // Validate input data
+                require(anak.idAnak > 0) { "ID anak tidak valid: ${anak.idAnak}" }
+                require(anak.idUser > 0) { "ID user tidak valid: ${anak.idUser}" }
+                require(anak.namaAnak.isNotBlank()) { "Nama anak tidak boleh kosong" }
+                require(anak.jenisKelamin in listOf("L", "P")) { "Jenis kelamin tidak valid: ${anak.jenisKelamin}" }
+                require(formattedDate.isNotBlank()) { "Tanggal lahir tidak valid: $formattedDate" }
+
+                // Handle profile photo locally
+                var localProfileImagePath: String? = null
+                if (profileImageUri != null) {
+                    val file = File(context.filesDir, "profile_image_${anak.idAnak}_${System.currentTimeMillis()}.jpg")
+                    try {
+                        context.contentResolver.openInputStream(profileImageUri)?.use { input ->
+                            file.outputStream().use { output -> input.copyTo(output) }
+                        } ?: throw IllegalStateException("Gagal membaca file foto profil")
+                        if (!file.exists() || file.length() == 0L) {
+                            throw IllegalStateException("File foto profil tidak valid atau kosong")
+                        }
+                        localProfileImagePath = file.absolutePath
+                        Log.d("AnakRepository", "Profile photo saved locally: ${file.name}, size=${file.length()} bytes")
+                    } catch (e: Exception) {
+                        Log.e("AnakRepository", "Gagal memproses file foto: ${e.message}", e)
+                        throw IllegalStateException("Gagal memproses file foto: ${e.message}")
+                    }
+                }
+
+                // Update in local database
+                anakDao.updateAnak(
+                    anak.copy(
+                        tanggalLahir = formattedDate,
+                        profileImageUri = localProfileImagePath // Simpan path lokal
+                    )
+                )
+
+                // Prepare API request (JSON)
+                val anakRequest = AnakRequest(
+                    idUser = anak.idUser,
+                    namaAnak = anak.namaAnak.trim(),
+                    jenisKelamin = anak.jenisKelamin,
+                    tanggalLahir = formattedDate
+                    // Tidak mengirim profile_photo ke API
+                )
+
+                // Log request for debugging
+                Log.d("AnakRepository", "Mengirim request: id_anak=${anak.idAnak}, id_user=${anak.idUser}, nama_anak=${anak.namaAnak}, jenis_kelamin=${anak.jenisKelamin}, tanggal_lahir=$formattedDate")
+
+                // Call API
+                val response = anakApiService.updateAnak2(
+                    id = anak.idAnak,
+                    anakRequest = anakRequest
+                )
+
+                if (response.isSuccessful) {
+                    response.body()?.data?.let { anakResponse ->
+                        // Update local database with server data
+                        anakDao.updateAnak(
+                            anak.copy(
+                                tanggalLahir = anakResponse.tanggalLahir,
+                                profileImageUri = localProfileImagePath // Pertahankan path lokal
+                            )
+                        )
+                        Log.d("AnakRepository", "Successfully updated anak: ${anakResponse.namaAnak}")
+                    } ?: throw Exception("Tidak ada data yang dikembalikan dari server")
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("AnakRepository", "Error response: $errorBody")
+                    throw Exception("Gagal memperbarui data anak: $errorBody")
+                }
+            } catch (e: Exception) {
+                Log.e("AnakRepository", "Failed to update anak: ${e.message}", e)
+                throw e
+            }
+        }
+    }
+
+    private fun formatTanggalLahir(tanggalLahir: String): String {
+        // Cek apakah sudah dalam format yyyy-MM-dd
+        try {
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(tanggalLahir)
+            return tanggalLahir // Kembalikan as-is jika valid
+        } catch (e: Exception) {
+            Log.d("AnakRepository", "Not in yyyy-MM-dd format: $tanggalLahir")
+        }
+
+        // Coba parse dari format dd/MM/yyyy
+        try {
+            val inputFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            val parsedDate = inputFormatter.parse(tanggalLahir)
+            if (parsedDate != null) {
+                val outputFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                return outputFormatter.format(parsedDate)
+            }
+        } catch (e: Exception) {
+            Log.d("AnakRepository", "Failed to parse date with format dd/MM/yyyy: $tanggalLahir")
+        }
+
+        throw IllegalArgumentException("Format tanggal tidak valid: $tanggalLahir")
     }
 
     suspend fun deleteAnak(anak: AnakEntity) {

@@ -33,8 +33,13 @@ import com.example.grow.ui.theme.*
 import com.example.grow.viewmodel.UpdateDataAnakViewModel
 import java.util.Calendar
 import android.app.DatePickerDialog
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +54,12 @@ fun UpdateDataAnakScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        viewModel.updateProfileImage(uri)
+    }
 
     // Load child data when screen is first composed
     LaunchedEffect(anakId) {
@@ -121,18 +132,30 @@ fun UpdateDataAnakScreen(
                     modifier = Modifier
                         .size(140.dp)
                         .clip(CircleShape)
-                        .background(LightBlue),
+                        .background(LightBlue)
+                        .clickable { imagePickerLauncher.launch("image/*") },
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_star),
-                        contentDescription = "Child Avatar",
-                        modifier = Modifier.size(100.dp)
-                    )
+                    if (uiState.profileImageUri != null) {
+                        AsyncImage(
+                            model = uiState.profileImageUri,
+                            contentDescription = "Child Profile Picture",
+                            modifier = Modifier
+                                .size(140.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_star),
+                            contentDescription = "Child Avatar",
+                            modifier = Modifier.size(100.dp)
+                        )
+                    }
                 }
 
                 IconButton(
-                    onClick = { /* Handle edit profile picture */ },
+                    onClick = { imagePickerLauncher.launch("image/*") },
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
@@ -241,7 +264,7 @@ fun UpdateDataAnakScreen(
 
             // Perbarui Button
             Button(
-                onClick = { viewModel.updateChild(userId, anakId) },
+                onClick = { viewModel.updateChild(userId, anakId, context) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)

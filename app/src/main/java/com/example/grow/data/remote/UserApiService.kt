@@ -1,7 +1,9 @@
 package com.example.grow.data.remote
 
 import com.example.grow.data.model.UserResponse
+import com.example.grow.data.model.UserUpdateRequest
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -16,16 +18,16 @@ interface UserApiService {
     suspend fun updateUser(
         @Header("Authorization") token: String,
         @Path("id") id: Int,
-        @Body body: Map<String, String>
+        @Body request: UserUpdateRequest
     ): Response<UserResponse>
 
     @Multipart
-    @POST("user/{id}/profile-image")
-    suspend fun uploadProfileImage(
+    @PUT("user/{id}")
+    suspend fun updateUserWithPhoto(
         @Header("Authorization") token: String,
         @Path("id") id: Int,
-        @Part image: MultipartBody.Part
-    ): Response<ImageUploadResponse>
+        @Part("name") name: RequestBody?,
+        @Part("email") email: RequestBody?,
+        @Part profilePhoto: MultipartBody.Part?
+    ): Response<UserResponse>
 }
-
-data class ImageUploadResponse(val imageUrl: String) // Response model for image upload

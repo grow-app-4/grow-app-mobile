@@ -11,7 +11,6 @@ import com.example.grow.data.model.*
     JenisPertumbuhanEntity::class,
     StandarPertumbuhanEntity::class,
     UserEntity::class,
-    ResepEntity::class,
     BahanEntity::class,
     ResepBahanEntity::class,
     LangkahPembuatanEntity::class,
@@ -28,5 +27,4 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun detailPertumbuhanDao(): DetailPertumbuhanDao
     abstract fun jenisPertumbuhanDao(): JenisPertumbuhanDao
     abstract fun standarPertumbuhanDao(): StandarPertumbuhanDao
-    abstract fun resepDao(): ResepDao
 }

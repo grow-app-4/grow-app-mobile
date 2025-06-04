@@ -10,5 +10,5 @@ data class AnakEntity(
     val namaAnak: String,
     val jenisKelamin: String,
     val tanggalLahir: String,
-    val profileImageUri: String? = null
+    val profileImageUri: String?
 )

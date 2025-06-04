@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,17 +50,10 @@ fun ProfileUpdateScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // State untuk URI gambar profil
-    var profileImageUri by remember { mutableStateOf<Uri?>(uiState.profileImageUri) }
-
-    // Launcher untuk memilih gambar
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            profileImageUri = it
-            viewModel.updateProfileImageUri(it)
-        }
+        viewModel.updateProfileImage(uri)
     }
 
     LaunchedEffect(userId, token) {
@@ -154,12 +148,13 @@ fun ProfileUpdateScreen(
                         modifier = Modifier
                             .size(140.dp)
                             .clip(CircleShape)
-                            .background(LightBlue),
+                            .background(LightBlue)
+                            .clickable { pickImageLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (profileImageUri != null) {
+                        if (uiState.profileImageUri != null) {
                             Image(
-                                painter = rememberAsyncImagePainter(profileImageUri),
+                                painter = rememberAsyncImagePainter(uiState.profileImageUri),
                                 contentDescription = "User Avatar",
                                 modifier = Modifier
                                     .size(140.dp)
@@ -174,20 +169,45 @@ fun ProfileUpdateScreen(
                         }
                     }
 
-                    IconButton(
-                        onClick = { pickImageLauncher.launch("image/*") },
+                    Row(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Blue)
-                            .border(2.dp, Color.White, CircleShape)
+                            .padding(4.dp)
+                            .align(Alignment.BottomEnd)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Profile Picture",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        IconButton(
+                            onClick = { pickImageLauncher.launch("image/*") },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Blue)
+                                .border(2.dp, Color.White, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Profile Picture",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        if (uiState.profileImageUri != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = { viewModel.updateProfileImage(null) },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Red)
+                                    .border(2.dp, Color.White, CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete Profile Picture",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 }
 

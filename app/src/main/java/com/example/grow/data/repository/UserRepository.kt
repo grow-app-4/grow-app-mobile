@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.example.grow.data.UserDao
 import com.example.grow.data.UserEntity
+import com.example.grow.data.model.UserUpdateRequest
 import com.example.grow.data.remote.UserApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -12,6 +13,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.IOException
 import javax.inject.Inject
@@ -25,25 +27,44 @@ class UserRepository @Inject constructor(
         return userDao.getUserById(userId)
     }
 
-    suspend fun updateUser(token: String, user: UserEntity) {
+    suspend fun updateUser(token: String, user: UserEntity, profileImageUri: Uri?, context: Context) {
         withContext(Dispatchers.IO) {
             try {
+                // Update local database first
                 userDao.updateUser(user)
+
+                val bearerToken = "Bearer $token"
                 var lastException: Exception? = null
                 repeat(3) { attempt ->
                     try {
-                        val bearerToken = "Bearer $token"
-                        val body = mutableMapOf<String, String>(
-                            "name" to user.name,
-                            "email" to user.email
-                        )
-                        // Tambahkan profileImageUri ke body hanya jika API mendukungnya
-                        user.profileImageUri?.let { body["profileImageUri"] = it }
-                        val response = userApiService.updateUser(
-                            bearerToken,
-                            user.id,
-                            body
-                        )
+                        val response = if (profileImageUri != null) {
+                            // Handle photo upload
+                            val file = File(context.cacheDir, "profile_image_${System.currentTimeMillis()}.jpg")
+                            context.contentResolver.openInputStream(profileImageUri)?.use { input ->
+                                file.outputStream().use { output -> input.copyTo(output) }
+                            }
+                            val requestBody = file.asRequestBody("image/jpeg".toMediaType())
+                            val profilePhotoPart = MultipartBody.Part.createFormData("profile_photo", file.name, requestBody)
+                            userApiService.updateUserWithPhoto(
+                                bearerToken,
+                                user.id,
+                                name = user.name.toRequestBody("text/plain".toMediaType()),
+                                email = user.email.toRequestBody("text/plain".toMediaType()),
+                                profilePhoto = profilePhotoPart
+                            )
+                        } else {
+                            // Handle update without photo
+                            userApiService.updateUser(
+                                bearerToken,
+                                user.id,
+                                UserUpdateRequest(
+                                    name = user.name,
+                                    email = user.email,
+                                    profile_photo = user.profileImageUri
+                                )
+                            )
+                        }
+
                         if (response.isSuccessful && response.body()?.data != null) {
                             response.body()?.data?.let {
                                 userDao.updateUser(
@@ -51,7 +72,7 @@ class UserRepository @Inject constructor(
                                         id = it.id,
                                         name = it.name,
                                         email = it.email,
-                                        profileImageUri = it.profileImageUri // Sekarang field ini ada
+                                        profileImageUri = it.profile_photo
                                     )
                                 )
                             }
@@ -70,6 +91,8 @@ class UserRepository @Inject constructor(
                 }
                 lastException?.let { throw it }
             } catch (e: Exception) {
+                // Fallback to local update
+                userDao.updateUser(user.copy(profileImageUri = profileImageUri?.toString()))
                 throw e
             }
         }
@@ -93,35 +116,12 @@ class UserRepository @Inject constructor(
                                 id = it.id,
                                 name = it.name,
                                 email = it.email,
-                                profileImageUri = it.profileImageUri // Sekarang field ini ada
+                                profileImageUri = it.profile_photo
                             )
                         )
                     }
                 } else {
                     throw Exception("Failed to fetch user: ${response.errorBody()?.string()}")
-                }
-            } catch (e: Exception) {
-                throw e
-            }
-        }
-    }
-
-    suspend fun uploadProfileImage(token: String, userId: Int, imageUri: Uri, context: Context): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val file = File(context.cacheDir, "profile_image_${System.currentTimeMillis()}.jpg")
-                context.contentResolver.openInputStream(imageUri)?.use { input ->
-                    file.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-                val requestBody = file.asRequestBody("image/jpeg".toMediaType())
-                val part = MultipartBody.Part.createFormData("image", file.name, requestBody)
-                val response = userApiService.uploadProfileImage("Bearer $token", userId, part)
-                if (response.isSuccessful) {
-                    response.body()?.imageUrl // Return nilai ini
-                } else {
-                    throw Exception("Image upload failed: ${response.errorBody()?.string()}")
                 }
             } catch (e: Exception) {
                 throw e

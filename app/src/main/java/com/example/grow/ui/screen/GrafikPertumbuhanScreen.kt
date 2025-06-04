@@ -152,18 +152,3 @@ class CustomMarkerView(context: android.content.Context) : MarkerView(context, R
         return MPPointF((-width / 2).toFloat(), -height.toFloat())
     }
 }
-
-@Preview
-@Composable
-fun PreviewGrafik() {
-    GrafikPertumbuhanScreen(
-        anak = AnakEntity(
-            idUser = 1,
-            idAnak = 1,
-            namaAnak = "Budi",
-            tanggalLahir = "2020-01-01",
-            jenisKelamin = "L"
-        ),
-        idJenis = 1
-    )
-}
