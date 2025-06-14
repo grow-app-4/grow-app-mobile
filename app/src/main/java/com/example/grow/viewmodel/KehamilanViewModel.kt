@@ -3,6 +3,7 @@ package com.example.grow.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.grow.data.UserEntity
 import com.example.grow.data.model.KehamilanRequest
 import com.example.grow.data.model.KehamilanResponse
 import com.example.grow.data.model.UsiaKehamilanResponse
@@ -35,6 +36,9 @@ class KehamilanViewModel @Inject constructor(
 
     private val _namaPengguna = MutableStateFlow<String?>(null)
     val namaPengguna: StateFlow<String?> = _namaPengguna.asStateFlow()
+
+    private val _userEntity = MutableStateFlow<UserEntity?>(null)
+    val userEntity: StateFlow<UserEntity?> = _userEntity.asStateFlow()
 
     fun tambahKehamilan(idUser: Int, tanggal: String, berat: Float) {
         viewModelScope.launch {
@@ -74,6 +78,7 @@ class KehamilanViewModel @Inject constructor(
         viewModelScope.launch {
             // Ambil data pengguna dari repository
             userRepository.getUserById(userId).collect { user ->
+                _userEntity.value = user
                 _namaPengguna.value = user?.name ?: "Nama Pengguna"
             }
         }

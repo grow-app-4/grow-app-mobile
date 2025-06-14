@@ -16,8 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.grow.data.model.FilterCategory
 import com.example.grow.data.model.FilterOption
+import com.example.grow.viewmodel.ResepViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -26,11 +28,15 @@ fun FilterDialog(
     onFilterSelected: (String, Int?, String) -> Unit,
     initialTimeFilter: String,
     initialRatingFilter: Int?,
-    initialCategoryFilter: String
+    initialCategoryFilter: String,
+    viewModel: ResepViewModel = hiltViewModel()
 ) {
     var selectedTime by remember { mutableStateOf(initialTimeFilter) }
     var selectedRating by remember { mutableStateOf(initialRatingFilter) }
     var selectedCategory by remember { mutableStateOf(initialCategoryFilter) }
+
+    val resepList by viewModel.resepList.collectAsState()
+    val categories = listOf("All") + resepList.mapNotNull { it.namaKategori }.distinct()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -42,7 +48,7 @@ fun FilterDialog(
                 Text("Time", fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("All", "Newest", "Oldest", "Popularity").forEach { time ->
+                    listOf("All", "Popularity").forEach { time -> // Removed "Newest", "Oldest"
                         FilterButton(
                             text = time,
                             isSelected = selectedTime == time,
@@ -73,10 +79,7 @@ fun FilterDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf(
-                        "All", "Cereal", "Vegetables", "Dinner", "Chinese",
-                        "Local Dish", "Fruit", "Breakfast", "Spanish", "Lunch"
-                    ).forEach { category ->
+                    categories.forEach { category ->
                         FilterButton(
                             text = category,
                             isSelected = selectedCategory == category,

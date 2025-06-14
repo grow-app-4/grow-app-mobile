@@ -93,6 +93,7 @@ fun NutrisiScreen(
         mutableStateOf(tanggalFromArg ?: tanggalHariIni)
     }
 
+    val user = viewModelKehamilan.userEntity.collectAsState().value
     val namaPengguna by viewModelKehamilan.namaPengguna.collectAsState()
     val sudahAdaAsupan by viewModelAsupan.asupanHariIni.collectAsState()
     val usiaKehamilan by viewModelKehamilan.usiaKehamilan.collectAsState()
@@ -245,16 +246,29 @@ fun NutrisiScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // Avatar placeholder
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(BiruPrimer, RoundedCornerShape(24.dp))
-                                ) {
-                                    Text(
-                                        text = "👤",
-                                        modifier = Modifier.align(Alignment.Center),
-                                        fontSize = 24.sp
+                                if (user?.profileImageUri != null && user.profileImageUri.isNotBlank()) {
+                                    AsyncImage(
+                                        model = user.profileImageUri,
+                                        contentDescription = "Foto Profil",
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.LightGray),
+                                        contentScale = ContentScale.Crop
                                     )
+                                } else {
+                                    // Avatar placeholder jika tidak ada foto
+                                    Box(
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .background(BiruPrimer, RoundedCornerShape(24.dp))
+                                    ) {
+                                        Text(
+                                            text = "👤",
+                                            modifier = Modifier.align(Alignment.Center),
+                                            fontSize = 24.sp
+                                        )
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.width(12.dp))

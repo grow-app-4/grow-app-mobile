@@ -13,7 +13,7 @@ data class FilterOption(
 
 // Class untuk menyimpan filter yang diterapkan
 data class AppliedFilter(
-    val category: FilterCategory,
+    val id: String,
     val value: String,
     val displayText: String
 )

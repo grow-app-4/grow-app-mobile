@@ -3,6 +3,7 @@ package com.example.grow.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.data.model.ForgotPasswordRequest
+import com.example.grow.data.model.ForgotPasswordUiState
 import com.example.grow.data.model.ResetPasswordRequest
 import com.example.grow.data.model.VerifyResetCodeRequest
 import com.example.grow.data.repository.AuthRepository
@@ -13,13 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
 import javax.inject.Inject
-
-data class ForgotPasswordUiState(
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    val successMessage: String? = null,
-    val resetToken: String? = null
-)
 
 @HiltViewModel
 class ForgotPasswordViewModel @Inject constructor(

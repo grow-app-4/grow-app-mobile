@@ -14,15 +14,20 @@ data class Resep(
     @SerializedName("foto_resep") val imageUrl: String?,
     @SerializedName("usia_rekomendasi") val usiaRekomendasi: String?,
     @SerializedName("jumlah") val jumlah: String?,
-    @SerializedName("rating") val rating: Float?,
+    @SerializedName("rating") val ratingString: String?,
     @SerializedName("waktu_pembuatan") val waktuPembuatan: Int?,
     @SerializedName("nama_kategori") val namaKategori: String?,
     @SerializedName("id_nutrisi") val idNutrisi: String?,
     @SerializedName("total_harga") val totalHarga: Double?,
     @SerializedName("nutrisi") val nutrisi: List<NutrisiItem>?,
     @SerializedName("bahan_baku") val bahan: List<BahanItem>?,
-    @SerializedName("langkah_pembuatan") val langkahPembuatan: List<LangkahItem>?
-)
+    @SerializedName("langkah_pembuatan") val langkahPembuatan: List<LangkahItem>?,
+    @SerializedName("created_at") val createdAt: String?,
+    @SerializedName("updated_at") val updatedAt: String?
+) {
+    val rating: Float?
+        get() = ratingString?.toFloatOrNull() // Konversi String ke Float
+}
 
 data class BahanItem(
     @SerializedName("id_bahan") val idBahan: String,
@@ -78,3 +83,4 @@ data class NutrisiPivot(
     @SerializedName("jumlah") val nilai: Double,
     @SerializedName("satuan") val satuan: String
 )
+

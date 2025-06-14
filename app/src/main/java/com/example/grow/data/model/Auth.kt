@@ -60,3 +60,10 @@ data class AuthUiState(
     val errorMessage: String? = null,
     val successMessage: String? = null
 )
+
+data class ForgotPasswordUiState(
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val successMessage: String? = null,
+    val resetToken: String? = null
+)

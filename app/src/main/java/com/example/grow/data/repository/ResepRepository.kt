@@ -31,20 +31,33 @@ class ResepRepository @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    private var lastFetchTime: Long = 0
+    private val cacheDuration = 5 * 60 * 1000
+
     init {
-        // Muat bookmark dari SharedPreferences saat inisialisasi
         val savedBookmarks = sharedPreferences.getStringSet("bookmarked_resep_ids", emptySet()) ?: emptySet()
         _bookmarkedResepIds.value = savedBookmarks
     }
 
-    suspend fun loadResepList() {
+    suspend fun loadResepList(forceFetch: Boolean = false) {
+        if (!forceFetch && _resepList.value.isNotEmpty() && (System.currentTimeMillis() - lastFetchTime) < cacheDuration) {
+            Log.d("ResepRepository", "Using cached recipes: ${_resepList.value.size}")
+            return
+        }
+
         _loading.value = true
         _error.value = null
         try {
             val response = apiService.getResepList()
             _resepList.value = response.data
+            lastFetchTime = System.currentTimeMillis()
+            Log.d("ResepRepository", "Loaded ${response.data.size} recipes: ${response.data}")
+            response.data.forEach { resep ->
+                Log.d("ResepRepository", "Resep: ${resep.namaResep}, Rating: ${resep.rating}, Raw Rating: ${resep.ratingString}")
+            }
         } catch (e: Exception) {
             _error.value = e.message ?: "Gagal memuat daftar resep"
+            Log.e("ResepRepository", "Error: ${e.message}")
         } finally {
             _loading.value = false
         }
@@ -55,11 +68,11 @@ class ResepRepository @Inject constructor(
         _error.value = null
         try {
             val resep = apiService.getResepDetail(id)
-            Log.d("ResepRepository", "Resep detail loaded: $resep") // <--- LOG DI SINI
             _resepDetail.value = resep
+            Log.d("ResepRepository", "Resep detail loaded: $resep")
         } catch (e: Exception) {
-            Log.e("ResepRepository", "Error loading resep detail: ${e.message}") // <--- LOG JIKA ERROR
             _error.value = e.message ?: "Gagal memuat detail resep"
+            Log.e("ResepRepository", "Error: ${e.message}")
         } finally {
             _loading.value = false
         }
@@ -73,7 +86,10 @@ class ResepRepository @Inject constructor(
             currentBookmarks.add(resep.idResep)
         }
         _bookmarkedResepIds.value = currentBookmarks
-        // Simpan ke SharedPreferences
         sharedPreferences.edit().putStringSet("bookmarked_resep_ids", currentBookmarks).apply()
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 }

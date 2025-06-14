@@ -1,5 +1,6 @@
 package com.example.grow.ui.screen
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,7 +27,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.grow.R
+import com.example.grow.data.model.AppliedFilter
 import com.example.grow.data.model.Resep
+import com.example.grow.ui.components.FilterChips
 import com.example.grow.ui.components.FilterDialog
 import com.example.grow.viewmodel.ResepViewModel
 import java.text.NumberFormat
@@ -52,6 +55,14 @@ fun ResepScreen(
     val selectedCategoryFilter by viewModel.selectedCategoryFilter.collectAsState()
 
     val filteredResepList = viewModel.getFilteredResepList(searchQuery)
+
+    val appliedFilters = remember(selectedTimeFilter, selectedRatingFilter, selectedCategoryFilter) {
+        buildList {
+            if (selectedTimeFilter != "All") add(AppliedFilter("time", selectedTimeFilter, selectedTimeFilter))
+            if (selectedRatingFilter != null) add(AppliedFilter("rating", "$selectedRatingFilter stars", "$selectedRatingFilter stars"))
+            if (selectedCategoryFilter != "All") add(AppliedFilter("category", selectedCategoryFilter, selectedCategoryFilter))
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -99,41 +110,16 @@ fun ResepScreen(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (selectedTimeFilter != "All") {
-                    FilterChip(
-                        selected = true,
-                        onClick = { viewModel.setFilters("All", selectedRatingFilter, selectedCategoryFilter) },
-                        label = { Text(selectedTimeFilter ?: "Unknown") },
-                        trailingIcon = {
-                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
-                        }
-                    )
+            FilterChips(
+                appliedFilters = appliedFilters,
+                onFilterRemoved = { filter ->
+                    when (filter.id) {
+                        "time" -> viewModel.setFilters("All", selectedRatingFilter, selectedCategoryFilter)
+                        "rating" -> viewModel.setFilters(selectedTimeFilter, null, selectedCategoryFilter)
+                        "category" -> viewModel.setFilters(selectedTimeFilter, selectedRatingFilter, "All")
+                    }
                 }
-                if (selectedRatingFilter != null) {
-                    FilterChip(
-                        selected = true,
-                        onClick = { viewModel.setFilters(selectedTimeFilter, null, selectedCategoryFilter) },
-                        label = { Text("$selectedRatingFilter stars") },
-                        trailingIcon = {
-                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
-                        }
-                    )
-                }
-                if (selectedCategoryFilter != "All") {
-                    FilterChip(
-                        selected = true,
-                        onClick = { viewModel.setFilters(selectedTimeFilter, selectedRatingFilter, "All") },
-                        label = { Text(selectedCategoryFilter ?: "Unknown") },
-                        trailingIcon = {
-                            Icon(Icons.Default.Close, "Hapus filter", modifier = Modifier.size(16.dp))
-                        }
-                    )
-                }
-            }
+            )
 
             Text(
                 text = "Pencarian Terbaru",
@@ -207,12 +193,14 @@ fun ResepScreen(
             FilterDialog(
                 onDismiss = { showFilterDialog = false },
                 onFilterSelected = { time, rating, category ->
+                    Log.d("ResepScreen", "Applying filters: time=$time, rating=$rating, category=$category")
                     viewModel.setFilters(time, rating, category)
                     showFilterDialog = false
                 },
                 initialTimeFilter = selectedTimeFilter,
                 initialRatingFilter = selectedRatingFilter,
-                initialCategoryFilter = selectedCategoryFilter
+                initialCategoryFilter = selectedCategoryFilter,
+                viewModel = viewModel // Pass ViewModel
             )
         }
     }
