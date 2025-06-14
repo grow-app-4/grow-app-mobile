@@ -2,6 +2,7 @@ package com.example.grow.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.example.grow.data.UserDao
 import com.example.grow.data.UserEntity
 import com.example.grow.data.model.UserUpdateRequest
@@ -43,8 +44,11 @@ class UserRepository @Inject constructor(
                             context.contentResolver.openInputStream(profileImageUri)?.use { input ->
                                 file.outputStream().use { output -> input.copyTo(output) }
                             }
+                            Log.d("PROFILE_UPLOAD", "File exists: ${file.exists()}, Size: ${file.length()} bytes")
                             val requestBody = file.asRequestBody("image/jpeg".toMediaType())
                             val profilePhotoPart = MultipartBody.Part.createFormData("profile_photo", file.name, requestBody)
+                            Log.d("PROFILE_UPLOAD", "Using updateUserWithPhoto()")
+                            Log.d("PROFILE_UPLOAD", "Sending file as: profile_photo = ${file.name}")
                             userApiService.updateUserWithPhoto(
                                 bearerToken,
                                 user.id,
@@ -63,6 +67,13 @@ class UserRepository @Inject constructor(
                                     profile_photo = user.profileImageUri
                                 )
                             )
+                        }
+
+                        // Logging
+                        Log.d("API_RESPONSE", "Code: ${response.code()}, Success: ${response.isSuccessful}")
+                        if (!response.isSuccessful) {
+                            val error = response.errorBody()?.string()
+                            Log.e("API_ERROR_BODY", error ?: "No error body")
                         }
 
                         if (response.isSuccessful && response.body()?.data != null) {
