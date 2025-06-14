@@ -30,5 +30,11 @@ interface AuthApiService {
 
     @POST("reset-password")
     suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<MessageResponse>
+
+    @POST("verify-email")
+    suspend fun verifyEmailCode(@Body request: VerifyResetCodeRequest): Response<AuthResponse>
+
+    @POST("resend-verification-code")
+    suspend fun resendVerificationCode(@Body request: ForgotPasswordRequest): Response<MessageResponse>
 }
 

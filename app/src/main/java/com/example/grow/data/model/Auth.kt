@@ -18,7 +18,7 @@ data class ForgotPasswordRequest(
 
 data class AuthResponse(
     val message: String,
-    val token: String,
+    val token: String?,
     val user: User
 )
 

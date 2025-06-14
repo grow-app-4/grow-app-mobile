@@ -52,7 +52,8 @@ fun MainScreen(
         Screen.TambahAsupan.route,
         Screen.InputDataPertumbuhan.route,
         Screen.EditDataPertumbuhan.route,
-        Screen.EditAnak.route
+        Screen.EditAnak.route,
+        Screen.EmailVerification.route,
     )
 
     // Jalankan sinkronisasi hanya jika pengguna sudah login dan bukan di splash screen

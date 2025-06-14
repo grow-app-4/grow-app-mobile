@@ -59,6 +59,32 @@ fun TambahAnakScreen(
             tinggiLahir.isNotBlank() &&
             lingkarKepalaLahir.isNotBlank()
 
+    val addAnakStatus by viewModel.addAnakStatus.collectAsState()
+
+    var hasNavigated by remember { mutableStateOf(false) }
+    LaunchedEffect(addAnakStatus) {
+        when (val status = addAnakStatus) {
+            is PertumbuhanViewModel.AddAnakStatus.Success -> {
+                if (!hasNavigated) {
+                    Toast.makeText(context, "Data anak berhasil disimpan!", Toast.LENGTH_SHORT).show()
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                    hasNavigated = true
+                    viewModel.resetAddAnakStatus()
+                }
+            }
+            is PertumbuhanViewModel.AddAnakStatus.Error -> {
+                Toast.makeText(context, "Error: ${status.message}", Toast.LENGTH_SHORT).show()
+                Log.e("TambahAnakScreen", "Error: ${status.message}")
+                viewModel.resetAddAnakStatus()
+            }
+            is PertumbuhanViewModel.AddAnakStatus.Idle -> {}
+            else -> {}
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -248,7 +274,7 @@ fun TambahAnakScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Blue,
                     unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = LightBlue,
+                    focusedContainerColor= LightBlue,
                     unfocusedContainerColor = LightBlue
                 ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -267,15 +293,7 @@ fun TambahAnakScreen(
                         beratBadan = beratLahir.toFloatOrNull() ?: 0f,
                         tinggiBadan = tinggiLahir.toFloatOrNull() ?: 0f,
                         lingkarKepala = lingkarKepalaLahir.toFloatOrNull() ?: 0f,
-                        userId = userId,
-                        onSuccess = {
-                            Toast.makeText(context, "Data anak berhasil disimpan!", Toast.LENGTH_SHORT).show()
-                            navController.navigate("home")
-                        },
-                        onError = { error ->
-                            Toast.makeText(context, "Error: ${error.message}", Toast.LENGTH_SHORT).show()
-                            Log.e("TAG_ERROR", "Error occurred", error)
-                        }
+                        userId = userId
                     )
                 },
                 modifier = Modifier

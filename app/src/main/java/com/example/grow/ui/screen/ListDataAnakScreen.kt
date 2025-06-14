@@ -3,11 +3,14 @@ package com.example.grow.ui.screen
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.grow.R
 import com.example.grow.ui.theme.*
 import com.example.grow.ui.viewmodel.ListDataAnakViewModel
+import com.example.grow.util.formatTanggalToIndo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,13 +92,14 @@ fun ListDataAnakScreen(
                     CircularProgressIndicator()
                 }
             } else {
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .weight(1f)
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    childrenData.forEach { child ->
+                    items(childrenData) { child ->
                         ChildDataCard(
                             name = child.anak.namaAnak,
                             age = child.age,
@@ -103,9 +108,11 @@ fun ListDataAnakScreen(
                             date = child.date,
                             onEditClick = {
                                 navController.navigate(Screen.EditAnak.createRoute(userId, child.anak.idAnak))
+                            },
+                            onDeleteClick = {
+                                viewModel.deleteChild(child.anak.idAnak)
                             }
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -158,8 +165,68 @@ fun ChildDataCard(
     nutritionStatus: String,
     stuntingStatus: String,
     date: String,
-    onEditClick: () -> Unit
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
+                Text(
+                    text = "Hapus Data Anak",
+                    style = TextStyle(
+                        fontFamily = PoppinsFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    )
+                )
+            },
+            text = {
+                Text(
+                    text = "Apakah Anda yakin ingin menghapus data $name? Tindakan ini tidak dapat dibatalkan.",
+                    style = TextStyle(
+                        fontFamily = PoppinsFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 14.sp
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteClick()
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                ) {
+                    Text(
+                        "Hapus",
+                        style = TextStyle(
+                            fontFamily = PoppinsFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp
+                        )
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(
+                        "Batal",
+                        style = TextStyle(
+                            fontFamily = PoppinsFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp
+                        )
+                    )
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth(),
@@ -225,6 +292,13 @@ fun ChildDataCard(
                         )
                     )
                 }
+                IconButton(onClick = { showDeleteDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Hapus Data",
+                        tint = Color.Red
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -246,7 +320,7 @@ fun ChildDataCard(
 
                 // Stunting Status
                 StatusItem(
-                    title = "Status Stunting",
+                    title = "Kategori Tinggi",
                     status = stuntingStatus,
                     date = date,
                     modifier = Modifier.weight(1f)
@@ -289,13 +363,6 @@ fun StatusItem(
                         color = TextPrimary
                     )
                 )
-
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = "View Detail",
-                    modifier = Modifier.size(16.dp),
-                    tint = TextSecondary
-                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -319,7 +386,7 @@ fun StatusItem(
 
             // Date
             Text(
-                text = date,
+                text = formatTanggalToIndo(date),
                 style = TextStyle(
                     fontFamily = PoppinsFamily,
                     fontWeight = FontWeight.Normal,

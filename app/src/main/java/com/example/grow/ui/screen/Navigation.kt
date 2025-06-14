@@ -58,6 +58,9 @@ sealed class Screen(val route: String) {
     object ListDataAnak : Screen("list_data_anak/{userId}") {
         fun createRoute(userId: Int) = "list_data_anak/$userId"
     }
+    object EmailVerification : Screen("verify_email/{email}") {
+        fun createRoute(email: String) = "verify_email/$email"
+    }
 }
 
 @Composable
@@ -210,6 +213,15 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
         }
         composable(Screen.PasswordResetSuccess.route) {
             PasswordResetSuccessScreen(navController)
+        }
+        composable(
+            route = Screen.EmailVerification.route,
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            VerifyEmailScreen(
+                email = backStackEntry.arguments?.getString("email") ?: "",
+                navController = navController
+            )
         }
     }
 }

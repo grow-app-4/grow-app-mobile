@@ -1,4 +1,5 @@
 import android.util.Log
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -36,6 +37,7 @@ import com.example.grow.ui.screen.ButtonTambahPertumbuhan
 import com.example.grow.ui.screen.GrafikPertumbuhanScreen
 import com.example.grow.ui.screen.Screen
 import com.example.grow.ui.viewmodel.PertumbuhanViewModel
+import com.example.grow.util.formatTanggalToIndo
 import com.example.grow.viewmodel.GrafikViewModel
 import kotlinx.coroutines.flow.firstOrNull
 
@@ -51,6 +53,7 @@ fun HomeScreen(
     val statusStunting by viewModel.statusStunting.collectAsState()
     val isLoading by viewModel.isLoadingChildren.collectAsState()
     val isEmptyChildren by viewModel.isEmptyChildren.collectAsState()
+    val addAnakStatus by viewModel.addAnakStatus.collectAsState()
     val scrollState = rememberScrollState()
 
     Log.d("HOME_SCREEN", "userId: $userId, children: $children, selectedChild: $selectedChild, statusStunting: $statusStunting")
@@ -63,6 +66,19 @@ fun HomeScreen(
         selectedChild?.idAnak?.let { idAnak ->
             viewModel.loadLatestPertumbuhan(idAnak)
             viewModel.loadStatusStunting(idAnak)
+        }
+    }
+
+    LaunchedEffect(addAnakStatus, children) {
+        if (addAnakStatus is PertumbuhanViewModel.AddAnakStatus.Success) {
+            val newAnakId = (addAnakStatus as PertumbuhanViewModel.AddAnakStatus.Success).idAnak
+            val newIndex = children.indexOfFirst { it.idAnak == newAnakId }
+            if (newIndex != -1) {
+                viewModel.selectChild(newIndex)
+                Log.d("HOME_SCREEN", "Memilih anak baru dengan idAnak: $newAnakId, index: $newIndex, nama: ${children[newIndex].namaAnak}")
+            } else {
+                Log.w("HOME_SCREEN", "Anak baru dengan idAnak: $newAnakId belum ada di daftar children: $children")
+            }
         }
     }
 
@@ -155,7 +171,7 @@ fun ChildProfileHeader(
 
         Text(
             text = "Profil Anak",
-            style = Typography.titleMedium.copy(color = BiruText),
+            style = Typography.titleLarge.copy(color = BiruPrimer),
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
@@ -332,7 +348,7 @@ fun GrowthDataCard(viewModel: PertumbuhanViewModel = hiltViewModel(), idAnak: In
             }
 
             Text(
-                text = latestPertumbuhan?.tanggalPencatatan?.let { "Data $it" } ?: "Belum ada data",
+                text = latestPertumbuhan?.tanggalPencatatan?.let { "Data ${formatTanggalToIndo(it)}" } ?: "Belum ada data",
                 style = Typography.labelSmall.copy(color = TextColor.copy(alpha = 0.6f)),
                 modifier = Modifier.padding(top = 16.dp)
             )
@@ -504,6 +520,12 @@ fun GrowthChart(
 ) {
     val grafikWHO by viewModel.grafikWHO.collectAsState()
     val grafikAnak by viewModel.grafikAnak.collectAsState()
+    val labelSumbuY = when (idJenis) {
+        1 -> "Tinggi (cm)"
+        2 -> "Berat (kg)"
+        3 -> "Lingkar Kepala (cm)"
+        else -> "Nilai Pertumbuhan"
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadGrafik(anak, idJenis)
@@ -531,7 +553,7 @@ fun GrowthChart(
         }
 
         Text(
-            text = "Berat (kg)",
+            text = labelSumbuY,
             style = Typography.labelSmall,
             color = TextColor.copy(alpha = 0.6f),
             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
@@ -866,6 +888,8 @@ fun GrowthHistoryContent(
 
 @Composable
 fun AnalysisResultCard(statusStunting: String?) {
+    var isExpanded by remember { mutableStateOf(false) } // State untuk expand/collapse
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -882,34 +906,57 @@ fun AnalysisResultCard(statusStunting: String?) {
                 .padding(16.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded }, // Toggle expand/collapse
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = "Hasil Analisis",
                     style = Typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = TextColor
                     )
                 )
                 Icon(
-                    imageVector = Icons.Outlined.KeyboardArrowDown,
-                    contentDescription = "Expand",
+                    imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
                     tint = TextColor.copy(alpha = 0.6f)
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Pesan utama berdasarkan status
             Text(
                 text = when (statusStunting) {
-                    "Normal" -> "Tinggi badan anak sesuai dengan standar usianya. 😊"
-                    "Pendek" -> "Tinggi badan anak sedikit di bawah rata-rata. Tetap pantau pertumbuhan ya! 🌱"
-                    "Sangat Pendek" -> "Tinggi badan anak berada di bawah rata-rata. Disarankan konsultasi untuk perhatian lebih lanjut. 💡"
-                    else -> "Belum ada data analisis."
+                    "Normal" -> "Yay! Tinggi badan anak sesuai dengan standar usianya. Pertahankan pola makan dan gaya hidup sehat ya! 😊"
+                    "Pendek" -> "Tinggi badan anak sedikit di bawah rata-rata. Yuk, lanjutkan pantau pertumbuhannya dan pastikan asupan gizi seimbang! 🌱"
+                    "Sangat Pendek" -> "Tinggi badan anak cukup jauh di bawah rata-rata. Kami sarankan konsultasi dengan dokter atau ahli gizi untuk dukungan lebih lanjut. 💙"
+                    "Sangat Tinggi" -> "Wow, anak memiliki tinggi badan di atas rata-rata! Pertahankan pola hidup sehat untuk mendukung pertumbuhannya! 🌟"
+                    else -> "Belum ada hasil analisis. Yuk, masukkan data tinggi badan anak untuk mengetahui status pertumbuhannya! 📏"
                 },
-                style = Typography.bodyMedium
+                style = Typography.bodyMedium.copy(color = TextColor),
+                modifier = Modifier.animateContentSize() // Animasi halus saat expand/collapse
             )
+
+            // Detail tambahan saat expanded
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = when (statusStunting) {
+                        "Normal" -> "Pertumbuhan tinggi badan anak Ibu/Bapak berada dalam kisaran yang sehat menurut standar WHO. Tetap jaga pola makan bergizi seimbang dan aktivitas fisik yang cukup, ya."
+                        "Pendek" -> "Saat ini tinggi badan anak sedikit di bawah rata-rata (z-score < -2). Tidak perlu khawatir, yuk bantu dengan memberikan asupan gizi yang baik dan rutin memantau tumbuh kembangnya."
+                        "Sangat Pendek" -> "Tinggi badan anak berada cukup jauh di bawah standar (z-score < -3). Sebaiknya segera berkonsultasi dengan tenaga kesehatan untuk mendapatkan arahan yang tepat dan dukungan lebih lanjut."
+                        "Tinggi di Atas Rata-Rata" -> "Tinggi badan anak lebih tinggi dari rata-rata (z-score > +2). Ini hal yang masih dalam batas wajar, namun tetap pantau pertumbuhannya agar tetap seimbang dan sehat."
+                        "Sangat Tinggi" -> "Anak memiliki tinggi badan yang jauh di atas rata-rata usianya (z-score > +3). Meskipun biasanya tidak menjadi masalah, ada baiknya sesekali berkonsultasi agar pertumbuhan anak tetap optimal."
+                        else -> "Data tinggi badan anak belum tersedia atau belum lengkap. Silakan lengkapi datanya terlebih dahulu agar kami bisa memberikan informasi yang sesuai."
+                    },
+                    style = Typography.bodySmall.copy(color = TextColor.copy(alpha = 0.8f)),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
         }
     }
 }

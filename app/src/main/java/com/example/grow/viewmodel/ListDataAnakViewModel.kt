@@ -70,7 +70,7 @@ class ListDataAnakViewModel @Inject constructor(
                         age = age,
                         nutritionStatus = nutritionStatus,
                         stuntingStatus = stuntingStatus,
-                        date = formatDate(date)
+                        date = date
                     )
                 }
                 _childrenData.value = childrenDataList
@@ -79,6 +79,23 @@ class ListDataAnakViewModel @Inject constructor(
                 _childrenData.value = emptyList()
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun deleteChild(childId: Int) {
+        viewModelScope.launch {
+            try {
+                // Find the child entity by ID
+                val child = _childrenData.value.find { it.anak.idAnak == childId }?.anak
+                if (child != null) {
+                    // Delete from repository (local and API)
+                    anakRepository.deleteAnak(child)
+                    // Refresh the data
+                    loadChildrenData()
+                }
+            } catch (e: Exception) {
+                // Handle error (e.g., show a Toast or Snackbar in UI)
             }
         }
     }
@@ -100,17 +117,6 @@ class ListDataAnakViewModel @Inject constructor(
         // Untuk contoh ini, kita return "Normal" sebagai default
         // Bisa diperluas dengan logika berdasarkan berat badan, tinggi, dll.
         return "Normal"
-    }
-
-    private fun formatDate(date: String): String {
-        return try {
-            val inputFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
-            val outputFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale("id"))
-            val parsedDate = LocalDate.parse(date, inputFormatter)
-            parsedDate.format(outputFormatter)
-        } catch (e: Exception) {
-            date
-        }
     }
 
     fun onEditChildData(childId: Int) {

@@ -19,6 +19,7 @@ import com.example.grow.data.model.*
 import com.example.grow.data.repository.AnakRepository
 import com.example.grow.data.repository.PertumbuhanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -39,6 +40,9 @@ class PertumbuhanViewModel @Inject constructor(
     private val _statusStunting = MutableStateFlow("Belum ada data analisis")
     val statusStunting: StateFlow<String> = _statusStunting
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
     private val _latestPertumbuhan = MutableStateFlow<LatestPertumbuhan?>(null)
     val latestPertumbuhan: StateFlow<LatestPertumbuhan?> = _latestPertumbuhan
 
@@ -50,6 +54,15 @@ class PertumbuhanViewModel @Inject constructor(
 
     val isLoadingChildren = MutableStateFlow(true)
     val isEmptyChildren = MutableStateFlow(false)
+
+    private val _addAnakStatus = MutableStateFlow<AddAnakStatus>(AddAnakStatus.Idle)
+    val addAnakStatus: StateFlow<AddAnakStatus> = _addAnakStatus.asStateFlow()
+
+    sealed class AddAnakStatus {
+        object Idle : AddAnakStatus()
+        data class Success(val idAnak: Int) : AddAnakStatus() // Simpan idAnak
+        data class Error(val message: String) : AddAnakStatus()
+    }
 
     fun loadChildren(userId: Int) {
         viewModelScope.launch {
@@ -164,12 +177,13 @@ class PertumbuhanViewModel @Inject constructor(
         beratBadan: Float,
         tinggiBadan: Float,
         lingkarKepala: Float,
-        userId: Int,
-        onSuccess: () -> Unit,
-        onError: (Throwable) -> Unit
+        userId: Int
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            _errorMessage.value = null
+            _addAnakStatus.value = AddAnakStatus.Idle
             try {
+                // Simpan anak
                 val anakEntity = AnakEntity(
                     idAnak = 0,
                     idUser = userId,
@@ -178,19 +192,65 @@ class PertumbuhanViewModel @Inject constructor(
                     jenisKelamin = jenisKelamin,
                     profileImageUri = null
                 )
-                anakRepository.addAnakWithInitialGrowth(
-                    anakEntity,
-                    beratBadan,
-                    tinggiBadan,
-                    lingkarKepala
+                val anakId = anakRepository.addAnakWithInitialGrowth(anakEntity)
+                Log.d("ADD_ANAK", "Anak disimpan dengan ID: $anakId")
+
+                // Buat PertumbuhanRequest
+                val tanggalPencatatan = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
+                val pertumbuhanRequest = PertumbuhanRequest(
+                    idAnak = anakId,
+                    tanggalPencatatan = tanggalPencatatan,
+                    statusStunting = "",
+                    details = listOf(
+                        DetailRequest(idJenis = 1, nilai = tinggiBadan),
+                        DetailRequest(idJenis = 2, nilai = beratBadan),
+                        DetailRequest(idJenis = 3, nilai = lingkarKepala)
+                    )
                 )
 
+                // Buat PertumbuhanEntity
+                val pertumbuhanEntity = PertumbuhanEntity(
+                    idPertumbuhan = 0,
+                    idAnak = anakId,
+                    tanggalPencatatan = tanggalPencatatan,
+                    statusStunting = ""
+                )
+
+                // Kirim ke API dan hitung stunting
+                val (idFromApi, error) = repository.createPertumbuhanToApi(pertumbuhanRequest)
+                if (error != null) {
+                    _errorMessage.value = error
+                    throw Exception(error)
+                }
+
+                // Simpan ke lokal
+                val localJenis = repository.getJenisPertumbuhan()
+                val idLocal = repository.createPertumbuhanToLocal(pertumbuhanEntity, pertumbuhanRequest, localJenis)
+                if (idLocal <= 0) {
+                    throw Exception("Gagal menyimpan data pertumbuhan lokal")
+                }
+
+                if (idFromApi != null) {
+                    repository.updateIdApiPertumbuhan(idLocal, idFromApi)
+                }
+
+                // Perbarui UI
                 loadChildren(userId)
-                onSuccess()
+                getPertumbuhanAnak(anakId)
+                loadLatestPertumbuhan(anakId)
+                loadStatusStunting(anakId)
+                _saveSuccess.value = true
+                _addAnakStatus.value = AddAnakStatus.Success(anakId)
             } catch (e: Exception) {
-                onError(e)
+                Log.e("ADD_ANAK", "Error: ${e.message}", e)
+                _errorMessage.value = "Gagal menambahkan anak: ${e.message}"
+                _addAnakStatus.value = AddAnakStatus.Error(e.message ?: "Unknown error")
             }
         }
+    }
+
+    fun resetAddAnakStatus() {
+        _addAnakStatus.value = AddAnakStatus.Idle
     }
 
     fun createPertumbuhan(
@@ -199,45 +259,49 @@ class PertumbuhanViewModel @Inject constructor(
         localJenis: List<JenisPertumbuhanEntity>
     ) {
         viewModelScope.launch {
-            Log.d("CREATE_PERTUMBUHAN", "Mulai create pertumbuhan")
+            _errorMessage.value = null
             try {
                 Log.d("CREATE_PERTUMBUHAN", "Mengirim data ke API: $request")
-                val idFromApi = repository.createPertumbuhanToApi(request)
+                val (idFromApi, error) = repository.createPertumbuhanToApi(request)
 
-                // Simpan ke lokal dan dapatkan id lokal
-                val idLocal = repository.createPertumbuhanToLocal(localEntity, request, localJenis)
-                if (idLocal <= 0) {
-                    Log.e("CREATE_PERTUMBUHAN", "Gagal menyimpan ke lokal: ID lokal tidak valid ($idLocal)")
-                } else if (idFromApi != null) {
-                    Log.d("CREATE_PERTUMBUHAN", "Upload ke API sukses, ID dari API: $idFromApi")
-                    repository.updateIdApiPertumbuhan(idLocal, idFromApi)
-                } else {
-                    Log.w("CREATE_PERTUMBUHAN", "Upload ke API gagal (idFromApi = null)")
+                if (error != null) {
+                    _errorMessage.value = error
                 }
 
-                // Perbarui data pertumbuhan, data terbaru, dan status stunting
+                // Simpan ke lokal
+                val idLocal = repository.createPertumbuhanToLocal(localEntity, request, localJenis)
+                if (idLocal <= 0) {
+                    Log.e("CREATE_PERTUMBUHAN", "Gagal simpan lokal: ID $idLocal")
+                    _errorMessage.value = "Gagal menyimpan data lokal"
+                    return@launch
+                }
+
+                if (idFromApi != null) {
+                    repository.updateIdApiPertumbuhan(idLocal, idFromApi)
+                }
+
                 getPertumbuhanAnak(localEntity.idAnak)
                 loadLatestPertumbuhan(localEntity.idAnak)
                 loadStatusStunting(localEntity.idAnak)
                 _saveSuccess.value = true
             } catch (e: Exception) {
-                Log.e("CREATE_PERTUMBUHAN", "Exception saat create pertumbuhan: ${e.message}", e)
-                // Simpan ke lokal meskipun API gagal
+                Log.e("CREATE_PERTUMBUHAN", "Gagal create: ${e.message}", e)
                 val idLocal = repository.createPertumbuhanToLocal(localEntity, request, localJenis)
                 if (idLocal <= 0) {
-                    Log.e("CREATE_PERTUMBUHAN", "Gagal menyimpan ke lokal di catch block: ID lokal tidak valid ($idLocal)")
+                    _errorMessage.value = "Gagal menyimpan data lokal"
+                } else {
+                    getPertumbuhanAnak(localEntity.idAnak)
+                    loadLatestPertumbuhan(localEntity.idAnak)
+                    loadStatusStunting(localEntity.idAnak)
+                    _saveSuccess.value = true
                 }
-                // Perbarui data pertumbuhan, data terbaru, dan status stunting
-                getPertumbuhanAnak(localEntity.idAnak)
-                loadLatestPertumbuhan(localEntity.idAnak)
-                loadStatusStunting(localEntity.idAnak)
-                _saveSuccess.value = true
             }
         }
     }
 
     fun resetSaveSuccess() {
         _saveSuccess.value = false
+        _errorMessage.value = null
     }
 
     fun getAnakById(
@@ -329,7 +393,7 @@ class PertumbuhanViewModel @Inject constructor(
             repository.updatePertumbuhanWithDetails(pertumbuhan, details)
             getPertumbuhanAnak(pertumbuhan.idAnak)
             loadLatestPertumbuhan(pertumbuhan.idAnak)
-            loadStatusStunting(pertumbuhan.idAnak) // Tambahkan untuk memperbarui AnalysisResultCard
+            loadStatusStunting(pertumbuhan.idAnak)
         }
     }
 

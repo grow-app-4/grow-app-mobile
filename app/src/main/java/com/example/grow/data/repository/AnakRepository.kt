@@ -66,50 +66,43 @@ class AnakRepository @Inject constructor(
     }
 
     suspend fun addAnakWithInitialGrowth(
-        anak: AnakEntity,
-        beratLahir: Float,
-        tinggiLahir: Float,
-        lingkarKepalaLahir: Float
-    ) {
+        anak: AnakEntity
+    ): Int {
         val TAG = "AddAnakLog"
-
         try {
-            // 1. Siapkan request ke API
+            // Validasi input
+            require(anak.namaAnak.isNotBlank()) { "Nama anak tidak boleh kosong" }
+            require(anak.jenisKelamin in listOf("L", "P")) { "Jenis kelamin tidak valid" }
+            require(anak.tanggalLahir.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) { "Format tanggal lahir tidak valid" }
+
+            // Kirim ke API
             val anakRequest = AnakRequest(
                 idUser = anak.idUser,
                 namaAnak = anak.namaAnak,
                 jenisKelamin = anak.jenisKelamin,
                 tanggalLahir = anak.tanggalLahir
             )
-
             val response = anakApiService.createAnak(anakRequest)
 
             if (response.isSuccessful) {
-                val anakResponse = response.body()?.data
-                val idAnakFromApi = anakResponse?.idAnak
-
-                Log.d(TAG, "Anak berhasil dibuat di API. ID dari server: $idAnakFromApi")
-
+                val idAnakFromApi = response.body()?.data?.idAnak
                 if (idAnakFromApi != null) {
                     val anakWithApiId = anak.copy(idAnak = idAnakFromApi)
                     anakDao.insertAnak(anakWithApiId)
-
-                    insertInitialGrowth(idAnakFromApi, anak.tanggalLahir, beratLahir, tinggiLahir, lingkarKepalaLahir)
-
-                } else {
-                    Log.e(TAG, "Gagal mendapatkan ID anak dari response. Simpan ke lokal saja.")
-                    saveAnakLocally(anak, beratLahir, tinggiLahir, lingkarKepalaLahir)
+                    Log.d(TAG, "Anak disimpan ke API dan lokal dengan ID: $idAnakFromApi")
+                    return idAnakFromApi
                 }
-
-            } else {
-                val error = response.errorBody()?.string()
-                Log.e(TAG, "Gagal membuat anak di API: $error. Simpan ke lokal saja.")
-                saveAnakLocally(anak, beratLahir, tinggiLahir, lingkarKepalaLahir)
             }
 
+            // Jika API gagal, simpan lokal
+            val idAnakLocal = anakDao.insertAnak(anak).toInt()
+            Log.w(TAG, "Gagal simpan ke API, disimpan lokal dengan ID: $idAnakLocal")
+            return idAnakLocal
         } catch (e: Exception) {
-            Log.e(TAG, "Terjadi error saat menambahkan anak: ${e.message}. Simpan ke lokal saja.")
-            saveAnakLocally(anak, beratLahir, tinggiLahir, lingkarKepalaLahir)
+            Log.e(TAG, "Error menambahkan anak: ${e.message}", e)
+            val idAnakLocal = anakDao.insertAnak(anak).toInt()
+            Log.d(TAG, "Disimpan lokal dengan ID: $idAnakLocal (offline)")
+            return idAnakLocal
         }
     }
 

@@ -11,6 +11,7 @@ import com.example.grow.data.model.AuthUiState
 import com.example.grow.data.model.ForgotPasswordRequest
 import com.example.grow.data.model.LoginRequest
 import com.example.grow.data.model.RegisterRequest
+import com.example.grow.data.model.VerifyResetCodeRequest
 import com.example.grow.data.repository.AuthRepository
 import com.example.grow.data.repository.UserRepository
 import com.example.grow.util.SessionManager
@@ -38,6 +39,9 @@ class AuthViewModel @Inject constructor(
     private val _forgotPasswordState = MutableStateFlow<Resource<String>>(Resource.Loading())
     val forgotPasswordState: StateFlow<Resource<String>> = _forgotPasswordState
 
+    private val _verifyEmailState = MutableStateFlow<Resource<AuthResponse>>(Resource.Loading())
+    val verifyEmailState: StateFlow<Resource<AuthResponse>> = _verifyEmailState
+
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
@@ -54,7 +58,11 @@ class AuthViewModel @Inject constructor(
                     val authResponse = response.body()!! // Ambil AuthResponse dari body
                     _loginState.value = Resource.Success(authResponse)
                     _userIdState.value = authResponse.user.id
-                    SessionManager.saveLoginSession(context, authResponse.user.id, authResponse.token)
+                    authResponse.token?.let {
+                        SessionManager.saveLoginSession(context, authResponse.user.id,
+                            it
+                        )
+                    }
                 } else {
                     _loginState.value = Resource.Error("Login gagal: ${response.errorBody()?.string() ?: "Respon tidak valid"}")
                 }
@@ -120,11 +128,13 @@ class AuthViewModel @Inject constructor(
                 )
                 if (response.isSuccessful && response.body()?.message == "success") {
                     response.body()?.let { authResponse ->
-                        SessionManager.saveLoginSession(
-                            context = context,
-                            userId = authResponse.user.id,
-                            token = authResponse.token
-                        )
+                        authResponse.token?.let {
+                            SessionManager.saveLoginSession(
+                                context = context,
+                                userId = authResponse.user.id,
+                                token = it
+                            )
+                        }
                         _uiState.value = AuthUiState(
                             isLoading = false,
                             successMessage = authResponse.message
@@ -153,6 +163,66 @@ class AuthViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    fun verifyEmailCode(email: String, code: String, context: Context) {
+        viewModelScope.launch {
+            try {
+                _verifyEmailState.value = Resource.Loading()
+                val response = repository.verifyEmailCode(VerifyResetCodeRequest(email, code))
+                if (response.isSuccessful && response.body() != null) {
+                    val authResponse = response.body()!!
+                    _verifyEmailState.value = Resource.Success(authResponse)
+                    _userIdState.value = authResponse.user.id
+                    authResponse.token?.let {
+                        SessionManager.saveLoginSession(context, authResponse.user.id,
+                            it
+                        )
+                    }
+                } else {
+                    _verifyEmailState.value = Resource.Error(
+                        response.errorBody()?.string() ?: "Gagal memverifikasi kode"
+                    )
+                }
+            } catch (e: Exception) {
+                _verifyEmailState.value = Resource.Error(
+                    e.localizedMessage ?: "Error saat memverifikasi kode"
+                )
+            }
+        }
+    }
+
+    fun resendVerificationCode(email: String) {
+        viewModelScope.launch {
+            try {
+                _uiState.value = AuthUiState(isLoading = true, errorMessage = null)
+                val response = repository.resendVerificationCode(ForgotPasswordRequest(email))
+                if (response.isSuccessful && response.body() != null) {
+                    _uiState.value = AuthUiState(
+                        isLoading = false,
+                        successMessage = response.body()!!.message
+                    )
+                } else {
+                    _uiState.value = AuthUiState(
+                        isLoading = false,
+                        errorMessage = response.errorBody()?.string() ?: "Gagal mengirim ulang kode"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState(
+                    isLoading = false,
+                    errorMessage = e.localizedMessage ?: "Error saat mengirim ulang kode"
+                )
+            }
+        }
+    }
+
+    fun setErrorMessage(message: String) {
+        _uiState.value = AuthUiState(
+            isLoading = false,
+            errorMessage = message,
+            successMessage = null
+        )
     }
 
     fun clearMessages() {

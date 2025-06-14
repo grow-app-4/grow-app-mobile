@@ -60,11 +60,19 @@ fun RegisterScreen(
 
     // Navigasi setelah registrasi berhasil
     LaunchedEffect(uiState.successMessage) {
-        if (uiState.successMessage == "success") {
-            navController.navigate(Screen.Login.route) {
-                popUpTo("register") { inclusive = true }
+        when (uiState.successMessage) {
+            "success" -> {
+                navController.navigate("verify_email/$email") { // Ubah ke Home setelah verifikasi
+                    popUpTo("register") { inclusive = true }
+                }
+                viewModel.clearMessages()
             }
-            viewModel.clearMessages()
+            "Kode verifikasi telah dikirim ke email Anda." -> {
+                navController.navigate("verify_email/$email") {
+                    popUpTo("register") { inclusive = true }
+                }
+                viewModel.clearMessages()
+            }
         }
     }
 
