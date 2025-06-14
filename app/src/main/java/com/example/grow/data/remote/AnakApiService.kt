@@ -4,8 +4,10 @@ import com.example.grow.data.model.Anak
 import com.example.grow.data.model.AnakRequest
 import com.example.grow.data.model.AnakResponse
 import com.example.grow.data.model.AnakSingleResponse
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -39,16 +41,29 @@ interface AnakApiService {
         @Body anakRequest: AnakRequest
     ): Response<AnakSingleResponse>
 
+//    @Multipart
+//    @PUT("anak/{id}")
+//    suspend fun updateAnak3(
+//        @Path("id") id: Int,
+//        @Part("_method") method: RequestBody = "PUT".toRequestBody("text/plain".toMediaType()), // <== penting
+//        @Part("id_user") idUser: RequestBody,
+//        @Part("nama_anak") namaAnak: RequestBody,
+//        @Part("jenis_kelamin") jenisKelamin: RequestBody,
+//        @Part("tanggal_lahir") tanggalLahir: RequestBody,
+//        @Part profilePhoto: MultipartBody.Part? = null
+//    ): Response<AnakSingleResponse>
     @Multipart
-    @PUT("anak/{id}")
+    @POST("anak/{id}")
     suspend fun updateAnak3(
         @Path("id") id: Int,
+        @Part("_method") method: RequestBody,
         @Part("id_user") idUser: RequestBody,
         @Part("nama_anak") namaAnak: RequestBody,
         @Part("jenis_kelamin") jenisKelamin: RequestBody,
         @Part("tanggal_lahir") tanggalLahir: RequestBody,
         @Part profilePhoto: MultipartBody.Part? = null
     ): Response<AnakSingleResponse>
+
 
     @DELETE("anak/{id}")
     suspend fun deleteAnak(@Path("id") id: Int): Response<AnakResponse>
