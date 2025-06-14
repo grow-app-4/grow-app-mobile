@@ -184,74 +184,150 @@ class AnakRepository @Inject constructor(
         )
     }
 
+//    suspend fun updateAnak2(anak: AnakEntity, profileImageUri: Uri?, context: Context) {
+//        withContext(Dispatchers.IO) {
+//            try {
+//                // Convert date to "yyyy-MM-dd" for API
+//                val formattedDate = formatTanggalLahir(anak.tanggalLahir)
+//
+//                // Validate input data
+//                require(anak.idAnak > 0) { "ID anak tidak valid: ${anak.idAnak}" }
+//                require(anak.idUser > 0) { "ID user tidak valid: ${anak.idUser}" }
+//                require(anak.namaAnak.isNotBlank()) { "Nama anak tidak boleh kosong" }
+//                require(anak.jenisKelamin in listOf("L", "P")) { "Jenis kelamin tidak valid: ${anak.jenisKelamin}" }
+//                require(formattedDate.isNotBlank()) { "Tanggal lahir tidak valid: $formattedDate" }
+//
+//                // Handle profile photo locally
+//                var localProfileImagePath: String? = null
+//                if (profileImageUri != null) {
+//                    val file = File(context.filesDir, "profile_image_${anak.idAnak}_${System.currentTimeMillis()}.jpg")
+//                    try {
+//                        context.contentResolver.openInputStream(profileImageUri)?.use { input ->
+//                            file.outputStream().use { output -> input.copyTo(output) }
+//                        } ?: throw IllegalStateException("Gagal membaca file foto profil")
+//                        if (!file.exists() || file.length() == 0L) {
+//                            throw IllegalStateException("File foto profil tidak valid atau kosong")
+//                        }
+//                        localProfileImagePath = file.absolutePath
+//                        Log.d("AnakRepository", "Profile photo saved locally: ${file.name}, size=${file.length()} bytes")
+//                    } catch (e: Exception) {
+//                        Log.e("AnakRepository", "Gagal memproses file foto: ${e.message}", e)
+//                        throw IllegalStateException("Gagal memproses file foto: ${e.message}")
+//                    }
+//                }
+//
+//                // Update in local database
+//                anakDao.updateAnak(
+//                    anak.copy(
+//                        tanggalLahir = formattedDate,
+//                        profileImageUri = localProfileImagePath // Simpan path lokal
+//                    )
+//                )
+//
+//                // Prepare API request (JSON)
+//                val anakRequest = AnakRequest(
+//                    idUser = anak.idUser,
+//                    namaAnak = anak.namaAnak.trim(),
+//                    jenisKelamin = anak.jenisKelamin,
+//                    tanggalLahir = formattedDate
+//                    // Tidak mengirim profile_photo ke API
+//                )
+//
+//                // Log request for debugging
+//                Log.d("AnakRepository", "Mengirim request: id_anak=${anak.idAnak}, id_user=${anak.idUser}, nama_anak=${anak.namaAnak}, jenis_kelamin=${anak.jenisKelamin}, tanggal_lahir=$formattedDate")
+//
+//                // Call API
+//                val response = anakApiService.updateAnak2(
+//                    id = anak.idAnak,
+//                    anakRequest = anakRequest
+//                )
+//
+//                if (response.isSuccessful) {
+//                    response.body()?.data?.let { anakResponse ->
+//                        // Update local database with server data
+//                        anakDao.updateAnak(
+//                            anak.copy(
+//                                tanggalLahir = anakResponse.tanggalLahir,
+//                                profileImageUri = localProfileImagePath // Pertahankan path lokal
+//                            )
+//                        )
+//                        Log.d("AnakRepository", "Successfully updated anak: ${anakResponse.namaAnak}")
+//                    } ?: throw Exception("Tidak ada data yang dikembalikan dari server")
+//                } else {
+//                    val errorBody = response.errorBody()?.string()
+//                    Log.e("AnakRepository", "Error response: $errorBody")
+//                    throw Exception("Gagal memperbarui data anak: $errorBody")
+//                }
+//            } catch (e: Exception) {
+//                Log.e("AnakRepository", "Failed to update anak: ${e.message}", e)
+//                throw e
+//            }
+//        }
+//    }
     suspend fun updateAnak2(anak: AnakEntity, profileImageUri: Uri?, context: Context) {
         withContext(Dispatchers.IO) {
             try {
-                // Convert date to "yyyy-MM-dd" for API
                 val formattedDate = formatTanggalLahir(anak.tanggalLahir)
 
-                // Validate input data
+                // Validasi input
                 require(anak.idAnak > 0) { "ID anak tidak valid: ${anak.idAnak}" }
                 require(anak.idUser > 0) { "ID user tidak valid: ${anak.idUser}" }
                 require(anak.namaAnak.isNotBlank()) { "Nama anak tidak boleh kosong" }
                 require(anak.jenisKelamin in listOf("L", "P")) { "Jenis kelamin tidak valid: ${anak.jenisKelamin}" }
-                require(formattedDate.isNotBlank()) { "Tanggal lahir tidak valid: $formattedDate" }
 
-                // Handle profile photo locally
+                // Konversi ke RequestBody
+                val mediaTypeText = "text/plain".toMediaType()
+                val methodBody = "PUT".toRequestBody(mediaTypeText)
+                val idUserBody = anak.idUser.toString().toRequestBody(mediaTypeText)
+                val namaAnakBody = anak.namaAnak.trim().toRequestBody(mediaTypeText)
+                val jenisKelaminBody = anak.jenisKelamin.toRequestBody(mediaTypeText)
+                val tanggalLahirBody = formattedDate.toRequestBody(mediaTypeText)
+
+                // Siapkan MultipartBody.Part jika ada foto
                 var localProfileImagePath: String? = null
-                if (profileImageUri != null) {
+                val profilePhotoPart: MultipartBody.Part? = profileImageUri?.let { uri ->
                     val file = File(context.filesDir, "profile_image_${anak.idAnak}_${System.currentTimeMillis()}.jpg")
-                    try {
-                        context.contentResolver.openInputStream(profileImageUri)?.use { input ->
-                            file.outputStream().use { output -> input.copyTo(output) }
-                        } ?: throw IllegalStateException("Gagal membaca file foto profil")
-                        if (!file.exists() || file.length() == 0L) {
-                            throw IllegalStateException("File foto profil tidak valid atau kosong")
-                        }
-                        localProfileImagePath = file.absolutePath
-                        Log.d("AnakRepository", "Profile photo saved locally: ${file.name}, size=${file.length()} bytes")
-                    } catch (e: Exception) {
-                        Log.e("AnakRepository", "Gagal memproses file foto: ${e.message}", e)
-                        throw IllegalStateException("Gagal memproses file foto: ${e.message}")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        file.outputStream().use { output -> input.copyTo(output) }
+                    } ?: throw IllegalStateException("Gagal membaca file foto profil")
+
+                    if (!file.exists() || file.length() == 0L) {
+                        throw IllegalStateException("File foto profil tidak valid atau kosong")
                     }
+
+                    localProfileImagePath = file.absolutePath
+                    val requestFile = file.asRequestBody("image/jpeg".toMediaType())
+                    MultipartBody.Part.createFormData("profile_photo", file.name, requestFile)
                 }
 
-                // Update in local database
+                // Simpan update lokal terlebih dahulu
                 anakDao.updateAnak(
                     anak.copy(
                         tanggalLahir = formattedDate,
-                        profileImageUri = localProfileImagePath // Simpan path lokal
+                        profileImageUri = localProfileImagePath
                     )
                 )
 
-                // Prepare API request (JSON)
-                val anakRequest = AnakRequest(
-                    idUser = anak.idUser,
-                    namaAnak = anak.namaAnak.trim(),
-                    jenisKelamin = anak.jenisKelamin,
-                    tanggalLahir = formattedDate
-                    // Tidak mengirim profile_photo ke API
-                )
-
-                // Log request for debugging
-                Log.d("AnakRepository", "Mengirim request: id_anak=${anak.idAnak}, id_user=${anak.idUser}, nama_anak=${anak.namaAnak}, jenis_kelamin=${anak.jenisKelamin}, tanggal_lahir=$formattedDate")
-
-                // Call API
-                val response = anakApiService.updateAnak2(
+                // Panggil API
+                val response = anakApiService.updateAnak3(
                     id = anak.idAnak,
-                    anakRequest = anakRequest
+                    method = methodBody,
+                    idUser = idUserBody,
+                    namaAnak = namaAnakBody,
+                    jenisKelamin = jenisKelaminBody,
+                    tanggalLahir = tanggalLahirBody,
+                    profilePhoto = profilePhotoPart
                 )
 
                 if (response.isSuccessful) {
                     response.body()?.data?.let { anakResponse ->
-                        // Update local database with server data
                         anakDao.updateAnak(
                             anak.copy(
                                 tanggalLahir = anakResponse.tanggalLahir,
-                                profileImageUri = localProfileImagePath // Pertahankan path lokal
+                                profileImageUri = localProfileImagePath
                             )
                         )
-                        Log.d("AnakRepository", "Successfully updated anak: ${anakResponse.namaAnak}")
+                        Log.d("AnakRepository", "Berhasil update anak: ${anakResponse.namaAnak}")
                     } ?: throw Exception("Tidak ada data yang dikembalikan dari server")
                 } else {
                     val errorBody = response.errorBody()?.string()
