@@ -552,30 +552,30 @@ fun NutrisiScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     // Food Recommendation Section
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .wrapContentHeight(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = BackgroundColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Rekomendasi Makanan Buat Moms Biar Ga Bosen",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Belum ada rekomendasi makanan. Fitur ini akan segera hadir.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
+//                    Card(
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .wrapContentHeight(),
+//                        shape = RoundedCornerShape(16.dp),
+//                        colors = CardDefaults.cardColors(containerColor = BackgroundColor),
+//                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+//                    ) {
+//                        Column(modifier = Modifier.padding(16.dp)) {
+//                            Text(
+//                                text = "Rekomendasi Makanan Buat Moms Biar Ga Bosen",
+//                                style = MaterialTheme.typography.titleMedium,
+//                                color = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                            Spacer(modifier = Modifier.height(8.dp))
+//                            Text(
+//                                text = "Belum ada rekomendasi makanan. Fitur ini akan segera hadir.",
+//                                style = MaterialTheme.typography.bodyMedium,
+//                                color = MaterialTheme.colorScheme.onSurfaceVariant
+//                            )
+//                        }
+//                    }
+//
+//                    Spacer(modifier = Modifier.height(20.dp))
                 }
             }
 
