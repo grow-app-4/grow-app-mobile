@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.grow.data.AnakEntity
 import com.example.grow.data.repository.AnakRepository
+import com.example.grow.util.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,11 +42,24 @@ class UpdateDataAnakViewModel @Inject constructor(
             try {
                 anakRepository.getAnakById(anakId).collect { anak ->
                     if (anak != null) {
+                        val profileImageUri = anak.profileImageUri?.let {
+                            try {
+                                // Bersihkan duplikasi storage
+                                val cleanPath = it.replace("storage/storage/", "storage/")
+                                if (cleanPath.startsWith("http")) Uri.parse(cleanPath)
+                                else Uri.parse("${Constants.BASE_IMAGE_URL}$cleanPath")
+                            } catch (e: Exception) {
+                                Log.e("UpdateChild", "Invalid profileImageUri: $it", e)
+                                null
+                            }
+                        }
+                        Log.d("UpdateChild", "Loaded profileImageUri: $profileImageUri")
                         _uiState.value = _uiState.value.copy(
                             originalChild = anak,
                             name = anak.namaAnak,
                             birthDate = anak.tanggalLahir,
                             gender = anak.jenisKelamin,
+                            profileImageUri = profileImageUri,
                             isLoading = false
                         )
                     } else {
@@ -56,6 +70,7 @@ class UpdateDataAnakViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
+                Log.e("UpdateChild", "Error loading child data: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "Gagal memuat data anak: ${e.message}"
@@ -78,6 +93,7 @@ class UpdateDataAnakViewModel @Inject constructor(
 
     fun updateProfileImage(uri: Uri?) {
         _uiState.value = _uiState.value.copy(profileImageUri = uri)
+        Log.d("UpdateChild", "Updated profileImageUri: $uri")
     }
 
     fun updateChild(userId: Int, anakId: Int, context: Context) {
@@ -92,7 +108,6 @@ class UpdateDataAnakViewModel @Inject constructor(
                 return@launch
             }
 
-            // Periksa apakah ada perubahan
             val hasChanges = state.name != originalChild.namaAnak ||
                     state.birthDate != originalChild.tanggalLahir ||
                     state.gender != originalChild.jenisKelamin ||
@@ -103,7 +118,6 @@ class UpdateDataAnakViewModel @Inject constructor(
                 return@launch
             }
 
-            // Validasi
             if (!validateInputs(state)) {
                 _uiState.value = state.copy(errorMessage = "Harap masukkan semua data yang diperlukan")
                 return@launch
@@ -121,11 +135,25 @@ class UpdateDataAnakViewModel @Inject constructor(
                 )
 
                 Log.d("UpdateChild", "Mengirim data ke repository: $anak")
-                anakRepository.updateAnak2(anak, state.profileImageUri, context)
+                val updatedChild = anakRepository.updateAnak2(anak, state.profileImageUri, context)
+                val updatedProfileImageUri = updatedChild.profileImageUri?.let {
+                    try {
+                        // Bersihkan duplikasi storage
+                        val cleanPath = it.replace("storage/storage/", "storage/")
+                        if (cleanPath.startsWith("http")) Uri.parse(cleanPath)
+                        else Uri.parse("${Constants.BASE_IMAGE_URL}$cleanPath")
+                    } catch (e: Exception) {
+                        Log.e("UpdateChild", "Invalid updated profileImageUri: $it", e)
+                        null
+                    }
+                }
+                Log.d("UpdateChild", "Updated profileImageUri from backend: $updatedProfileImageUri")
                 _uiState.value = state.copy(
                     isLoading = false,
                     isUpdateSuccess = true,
-                    errorMessage = null
+                    errorMessage = null,
+                    profileImageUri = updatedProfileImageUri,
+                    originalChild = updatedChild
                 )
             } catch (e: Exception) {
                 Log.e("UpdateChild", "Error: ${e.message}", e)
@@ -138,7 +166,6 @@ class UpdateDataAnakViewModel @Inject constructor(
     }
 
     private fun validateInputs(state: UiState): Boolean {
-        // Validasi nama
         if (state.name.isBlank()) {
             Log.d("UpdateChild", "Validasi gagal: Nama anak kosong")
             return false
@@ -148,13 +175,11 @@ class UpdateDataAnakViewModel @Inject constructor(
             return false
         }
 
-        // Validasi tanggal lahir
         if (state.birthDate.isBlank() || !isValidDateFormat(state.birthDate)) {
             Log.d("UpdateChild", "Validasi gagal: Tanggal lahir tidak valid")
             return false
         }
 
-        // Validasi jenis kelamin
         if (state.gender == null || state.gender !in listOf("L", "P")) {
             Log.d("UpdateChild", "Validasi gagal: Jenis kelamin tidak valid")
             return false

@@ -32,11 +32,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.grow.data.AnakEntity
 import com.example.grow.ui.screen.ButtonTambahPertumbuhan
 import com.example.grow.ui.screen.GrafikPertumbuhanScreen
 import com.example.grow.ui.screen.Screen
 import com.example.grow.ui.viewmodel.PertumbuhanViewModel
+import com.example.grow.util.Constants
 import com.example.grow.util.formatTanggalToIndo
 import com.example.grow.viewmodel.GrafikViewModel
 import kotlinx.coroutines.flow.firstOrNull
@@ -55,12 +57,17 @@ fun HomeScreen(
     val isEmptyChildren by viewModel.isEmptyChildren.collectAsState()
     val addAnakStatus by viewModel.addAnakStatus.collectAsState()
     val scrollState = rememberScrollState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val syncError by viewModel.syncError.collectAsState()
 
     Log.d("HOME_SCREEN", "userId: $userId, children: $children, selectedChild: $selectedChild, statusStunting: $statusStunting")
 
     LaunchedEffect(userId) {
         viewModel.loadChildren(userId)
+        viewModel.syncPertumbuhan(userId)
     }
+
+
 
     LaunchedEffect(selectedChild?.idAnak) {
         selectedChild?.idAnak?.let { idAnak ->
@@ -79,6 +86,14 @@ fun HomeScreen(
             } else {
                 Log.w("HOME_SCREEN", "Anak baru dengan idAnak: $newAnakId belum ada di daftar children: $children")
             }
+        }
+    }
+
+    syncError?.let { error ->
+        LaunchedEffect(error) {
+            // Tampilkan Toast atau Snackbar untuk error
+            // Contoh: SnackbarHostState().showSnackbar(error)
+            Log.e("HOME_SCREEN", "Sync error: $error")
         }
     }
 
@@ -216,6 +231,7 @@ fun ChildProfileHeader(
             } else {
                 itemsIndexed(children) { index, child ->
                     val isSelected = child.idAnak == selectedChild?.idAnak
+                    val imageUrl = child.profileImageUri?.let { Constants.BASE_IMAGE_URL + it }
 
                     Card(
                         modifier = Modifier
@@ -239,14 +255,17 @@ fun ChildProfileHeader(
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            AsyncImage(
+                                model = imageUrl,
+                                placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                                error = painterResource(id = android.R.drawable.ic_menu_gallery),
                                 contentDescription = "Profile Picture",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
                             )
+
 
                             Spacer(modifier = Modifier.width(8.dp))
 
@@ -334,12 +353,12 @@ fun GrowthDataCard(viewModel: PertumbuhanViewModel = hiltViewModel(), idAnak: In
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 GrowthDataItem(
-                    title = "Berat Badan",
-                    value = latestPertumbuhan?.beratBadan?.let { "$it kg" } ?: "-"
-                )
-                GrowthDataItem(
                     title = "Tinggi Badan",
                     value = latestPertumbuhan?.tinggiBadan?.let { "$it cm" } ?: "-"
+                )
+                GrowthDataItem(
+                    title = "Berat Badan",
+                    value = latestPertumbuhan?.beratBadan?.let { "$it kg" } ?: "-"
                 )
                 GrowthDataItem(
                     title = "Lingkar Kepala",
@@ -385,8 +404,8 @@ fun GrowthChartCard(
     var selectedTabIndex by remember { mutableStateOf(0) }
 
     val jenisOptions = listOf(
-        "Berat Badan Sesuai Usia",
         "Tinggi Badan Sesuai Usia",
+        "Berat Badan Sesuai Usia",
         "Lingkar Kepala Sesuai Usia"
     )
 

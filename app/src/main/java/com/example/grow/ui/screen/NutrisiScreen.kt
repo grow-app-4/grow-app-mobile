@@ -72,6 +72,7 @@ import com.example.grow.ui.theme.BackgroundColor
 import com.example.grow.ui.theme.BiruText
 import com.example.grow.ui.theme.Typography
 import com.example.grow.ui.viewmodel.PertumbuhanViewModel
+import com.example.grow.util.Constants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1103,6 +1104,7 @@ fun ChildProfileHeader(
         ) {
             itemsIndexed(children) { index, child ->
                 val isSelected = child.idAnak == selectedChild?.idAnak
+                val imageUrl = child.profileImageUri?.let { Constants.BASE_IMAGE_URL + it }
 
                 Card(
                     modifier = Modifier
@@ -1125,12 +1127,14 @@ fun ChildProfileHeader(
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(id = android.R.drawable.ic_menu_gallery),
-                            contentDescription = "Foto Anak",
+                        AsyncImage(
+                            model = imageUrl,
+                            placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                            contentDescription = "Profile Picture",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                         )
 

@@ -1,5 +1,9 @@
 package com.example.grow.ui.screen
 
+import android.app.DatePickerDialog
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,19 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import com.example.grow.R
 import com.example.grow.ui.theme.*
 import com.example.grow.viewmodel.UpdateDataAnakViewModel
-import java.util.Calendar
-import android.app.DatePickerDialog
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,8 +77,10 @@ fun UpdateDataAnakScreen(
     // Handle successful update
     LaunchedEffect(uiState.isUpdateSuccess) {
         if (uiState.isUpdateSuccess) {
-            navController.navigateUp()
-            viewModel.resetUpdateSuccess()
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Data anak berhasil diperbarui")
+                viewModel.resetUpdateSuccess()
+            }
         }
     }
 
@@ -137,13 +137,12 @@ fun UpdateDataAnakScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     if (uiState.profileImageUri != null) {
-                        AsyncImage(
-                            model = uiState.profileImageUri,
+                        Image(
+                            painter = rememberAsyncImagePainter(uiState.profileImageUri),
                             contentDescription = "Child Profile Picture",
                             modifier = Modifier
                                 .size(140.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
+                                .clip(CircleShape)
                         )
                     } else {
                         Image(
@@ -154,20 +153,45 @@ fun UpdateDataAnakScreen(
                     }
                 }
 
-                IconButton(
-                    onClick = { imagePickerLauncher.launch("image/*") },
+                Row(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Blue)
-                        .border(2.dp, Color.White, CircleShape)
+                        .padding(4.dp)
+                        .align(Alignment.BottomEnd)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Profile Picture",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconButton(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Blue)
+                            .border(2.dp, Color.White, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Profile Picture",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    if (uiState.profileImageUri != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = { viewModel.updateProfileImage(null) },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color.Red)
+                                .border(2.dp, Color.White, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Profile Picture",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -294,5 +318,3 @@ fun UpdateDataAnakScreen(
         }
     }
 }
-
-

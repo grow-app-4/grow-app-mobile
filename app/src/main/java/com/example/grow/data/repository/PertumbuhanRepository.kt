@@ -52,6 +52,42 @@ class PertumbuhanRepository @Inject constructor(
         return pertumbuhanDao.getPertumbuhanByAnak(idAnak)
     }
 
+    suspend fun syncPertumbuhanByUserId(userId: Int) {
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d("SYNC_PERTUMBUHAN", "Memulai sinkronisasi untuk userId: $userId")
+
+                // 1. Ambil daftar anak berdasarkan userId
+                val anakList = getChildrenByUserId(userId)
+                if (anakList.isEmpty()) {
+                    Log.w("SYNC_PERTUMBUHAN", "Tidak ada anak terkait dengan userId: $userId")
+                    return@withContext
+                }
+
+                // 2. Ambil semua data pertumbuhan dari API
+                val apiPertumbuhanList = fetchPertumbuhanFromApi()
+                Log.d("SYNC_PERTUMBUHAN", "Data dari API: ${apiPertumbuhanList.size} item")
+
+                // 3. Filter data pertumbuhan berdasarkan idAnak yang terkait dengan user
+                val filteredPertumbuhanList = apiPertumbuhanList.filter { pertumbuhan ->
+                    anakList.any { anak -> anak.idAnak == pertumbuhan.idAnak }
+                }
+                Log.d("SYNC_PERTUMBUHAN", "Data setelah filter: ${filteredPertumbuhanList.size} item")
+
+                // 4. Sinkronkan data yang sudah difilter ke Room
+                if (filteredPertumbuhanList.isNotEmpty()) {
+                    syncFromApi(filteredPertumbuhanList)
+                    Log.d("SYNC_PERTUMBUHAN", "Berhasil menyinkronkan ${filteredPertumbuhanList.size} data pertumbuhan")
+                } else {
+                    Log.w("SYNC_PERTUMBUHAN", "Tidak ada data pertumbuhan untuk anak-anak userId: $userId")
+                }
+
+            } catch (e: Exception) {
+                Log.e("SYNC_PERTUMBUHAN", "Gagal menyinkronkan data: ${e.message}", e)
+            }
+        }
+    }
+
     suspend fun syncJenisPertumbuhan() = withContext(Dispatchers.IO) {
         val localData = jenisPertumbuhanDao.getAllJenisPertumbuhan()
 
@@ -133,6 +169,7 @@ class PertumbuhanRepository @Inject constructor(
 
         Log.d("LOCAL_INSERT", "Memulai proses analisis stunting untuk ID: $idPertumbuhan")
         prosesAnalisisStunting(idPertumbuhan)
+        prosesAnalisisGizi(idPertumbuhan)
 
         Log.d("LOCAL_INSERT", "Data pertumbuhan dan detail berhasil disimpan lokal")
         return idPertumbuhan
@@ -146,6 +183,7 @@ class PertumbuhanRepository @Inject constructor(
         pertumbuhanDao.deleteDetailsByPertumbuhanId(pertumbuhan.idPertumbuhan)
         pertumbuhanDao.insertDetailPertumbuhan(details)
         prosesAnalisisStunting(pertumbuhan.idPertumbuhan)
+        prosesAnalisisGizi(pertumbuhan.idPertumbuhan)
     }
 
     suspend fun createPertumbuhanToApi(
@@ -401,8 +439,96 @@ class PertumbuhanRepository @Inject constructor(
         }
     }
 
+    suspend fun prosesAnalisisGizi(idPertumbuhan: Int): String? {
+        try {
+            Log.d("AnalisisGizi", "Mulai analisis untuk idPertumbuhan: $idPertumbuhan")
+
+            val pertumbuhan = pertumbuhanDao.getPertumbuhanId(idPertumbuhan)
+                ?: run {
+                    Log.w("AnalisisGizi", "Data pertumbuhan tidak ditemukan")
+                    return null
+                }
+
+            val anak = anakDao.getAnakId(pertumbuhan.idAnak)
+                ?: run {
+                    Log.w("AnalisisGizi", "Data anak tidak ditemukan")
+                    return null
+                }
+
+            val detailList = detailDao.getDetailByPertumbuhanId(idPertumbuhan)
+            val detailBerat = detailList.firstOrNull { it.idJenis == JENIS_BERAT_BADAN }
+                ?: run {
+                    Log.w("AnalisisGizi", "Detail berat badan tidak ditemukan")
+                    return null
+                }
+
+            val formatterLahir = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+            val formatterCatat = DateTimeFormatter.ofPattern("dd-MM-yyyy")
+            val usiaBulan = try {
+                ChronoUnit.MONTHS.between(
+                    LocalDate.parse(anak.tanggalLahir, formatterLahir),
+                    LocalDate.parse(pertumbuhan.tanggalPencatatan, formatterCatat)
+                ).toInt()
+            } catch (e: DateTimeParseException) {
+                Log.w("AnalisisGizi", "Gagal parsing tanggal: ${e.message}")
+                return null
+            }
+
+            val standarList = standarDao.getStandarByUsiaAndJenisKelamin(
+                usiaBulan, anak.jenisKelamin, JENIS_BERAT_BADAN
+            )
+            if (standarList.isEmpty()) {
+                Log.w("AnalisisGizi", "Data berat tidak ditemukan untuk usia $usiaBulan, jenis kelamin ${anak.jenisKelamin}")
+                return null
+            }
+
+            val median = standarList.find { it.z_score == 0f }?.nilai
+                ?: run {
+                    Log.w("AnalisisGizi", "Median (z_score = 0) tidak ditemukan")
+                    return null
+                }
+
+            val zScorePlusOne = standarList.find { it.z_score == 1f }?.nilai
+            val standarDeviasi = if (zScorePlusOne != null) {
+                zScorePlusOne - median
+            } else {
+                Log.w("AnalisisGizi", "Standar deviasi tidak dapat dihitung, menggunakan default 3.0 cm")
+                3.0f
+            }
+
+            if (standarDeviasi == 0f) {
+                Log.w("AnalisisGizi", "Standar deviasi nol, z-score tidak dapat dihitung")
+                return null
+            }
+
+            val zScore = (detailBerat.nilai - median) / standarDeviasi
+            Log.d("AnalisisGizi", "Z-Score: $zScore (tinggi: ${detailBerat.nilai}, median: $median, stdDev: $standarDeviasi)")
+
+            val status = classifyWeightForAge(zScore)
+            Log.d("AnalisisGizi", "Status: $status")
+
+            Log.d("AnalisisGizi", "Berhasil update status gizi")
+            return status
+        } catch (e: Exception) {
+            Log.e("AnalisisGizi", "Terjadi error saat analisis", e)
+            return null
+        }
+    }
+
+    private fun classifyWeightForAge(zScore: Float): String {
+        return when {
+            zScore < -3 -> "Gizi Buruk"
+            zScore in -3.0..-2.0 -> "Kurang Gizi"
+            zScore in -2.0..1.0 -> "Gizi Baik"
+            zScore in 1.0..2.0 -> "Berisiko Kelebihan Gizi"
+            zScore > 2 -> "Kelebihan Gizi"
+            else -> "Tidak Valid"
+        }
+    }
+
     companion object {
         const val JENIS_TINGGI_BADAN = 1
+        const val JENIS_BERAT_BADAN = 2
     }
 
     suspend fun getLatestPertumbuhan(idAnak: Int): List<GrowthData> {
@@ -458,6 +584,10 @@ class PertumbuhanRepository @Inject constructor(
 
     fun getPertumbuhanAnak(idAnak: Int): Flow<List<PertumbuhanWithDetail>> {
         return pertumbuhanDao.getPertumbuhanWithDetailFlow(idAnak)
+    }
+
+    suspend fun getIdPertumbuhanTerbaru(idAnak: Int): Int? {
+        return pertumbuhanDao.getLatestPertumbuhanIdByAnak(idAnak)
     }
 
     suspend fun getStandarWHO(idJenis: Int, jenisKelamin: String): List<StandarPertumbuhanEntity> {

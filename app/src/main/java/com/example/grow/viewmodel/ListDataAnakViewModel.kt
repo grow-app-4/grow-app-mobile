@@ -31,7 +31,8 @@ class ListDataAnakViewModel @Inject constructor(
         val age: String,
         val nutritionStatus: String,
         val stuntingStatus: String,
-        val date: String
+        val date: String,
+        val profileImgUri: String?
     )
 
     private val _childrenData = MutableStateFlow<List<ChildData>>(emptyList())
@@ -70,7 +71,8 @@ class ListDataAnakViewModel @Inject constructor(
                         age = age,
                         nutritionStatus = nutritionStatus,
                         stuntingStatus = stuntingStatus,
-                        date = date
+                        date = date,
+                        profileImgUri = anak.profileImageUri
                     )
                 }
                 _childrenData.value = childrenDataList
@@ -113,10 +115,11 @@ class ListDataAnakViewModel @Inject constructor(
     }
 
     private suspend fun determineNutritionStatus(idAnak: Int): String {
-        // Logika untuk menentukan status gizi, misalnya berdasarkan data pertumbuhan terbaru
-        // Untuk contoh ini, kita return "Normal" sebagai default
-        // Bisa diperluas dengan logika berdasarkan berat badan, tinggi, dll.
-        return "Normal"
+        val idPertumbuhan = pertumbuhanRepository.getIdPertumbuhanTerbaru(idAnak)
+            ?: return "Tidak Tersedia"
+
+        val status = pertumbuhanRepository.prosesAnalisisGizi(idPertumbuhan)
+        return status ?: "Tidak Diketahui"
     }
 
     fun onEditChildData(childId: Int) {

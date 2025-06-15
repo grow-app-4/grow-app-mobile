@@ -106,4 +106,5 @@ object NetworkModule {
     fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
         return context.getSharedPreferences("bookmark_prefs", Context.MODE_PRIVATE)
     }
+
 }

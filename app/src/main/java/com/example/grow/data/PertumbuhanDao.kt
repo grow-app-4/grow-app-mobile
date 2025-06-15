@@ -80,6 +80,9 @@ interface PertumbuhanDao {
     @Query("SELECT * FROM pertumbuhan WHERE idAnak = :idAnak ORDER BY tanggalPencatatan ASC")
     fun getPertumbuhanWithDetailFlow(idAnak: Int): Flow<List<PertumbuhanWithDetail>>
 
+    @Query("SELECT idPertumbuhan FROM pertumbuhan WHERE idAnak = :idAnak ORDER BY idPertumbuhan DESC LIMIT 1")
+    suspend fun getLatestPertumbuhanIdByAnak(idAnak: Int): Int?
+
     // Ambil standar WHO sesuai jenis dan jenis kelamin anak (biasanya statis, jadi cukup suspend)
     @Query("SELECT * FROM standar_pertumbuhan WHERE id_jenis = :idJenis AND jenis_kelamin = :jenisKelamin ORDER BY usia ASC, z_score ASC")
     suspend fun getStandarPertumbuhan(idJenis: Int, jenisKelamin: String): List<StandarPertumbuhanEntity>

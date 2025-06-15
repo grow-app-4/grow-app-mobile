@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -26,9 +27,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import com.example.grow.R
 import com.example.grow.ui.theme.*
 import com.example.grow.ui.viewmodel.ListDataAnakViewModel
+import com.example.grow.util.Constants
 import com.example.grow.util.formatTanggalToIndo
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,9 +103,11 @@ fun ListDataAnakScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(childrenData) { child ->
+                        val imageUrl = child.profileImgUri?.let { Constants.BASE_IMAGE_URL + it }
                         ChildDataCard(
                             name = child.anak.namaAnak,
                             age = child.age,
+                            imageUrl = imageUrl,
                             nutritionStatus = child.nutritionStatus,
                             stuntingStatus = child.stuntingStatus,
                             date = child.date,
@@ -162,6 +167,7 @@ fun ListDataAnakScreen(
 fun ChildDataCard(
     name: String,
     age: String,
+    imageUrl: String?,
     nutritionStatus: String,
     stuntingStatus: String,
     date: String,
@@ -248,10 +254,15 @@ fun ChildDataCard(
                         .background(LightBlue),
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_star), // Replace with proper child icon
-                        contentDescription = "Child Avatar",
-                        modifier = Modifier.size(32.dp)
+                    AsyncImage(
+                        model = imageUrl,
+                        placeholder = painterResource(id = android.R.drawable.ic_menu_gallery),
+                        error = painterResource(id = android.R.drawable.ic_menu_gallery),
+                        contentDescription = "Profile Picture",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
                     )
                 }
 

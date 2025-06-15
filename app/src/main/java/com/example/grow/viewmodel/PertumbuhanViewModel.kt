@@ -55,6 +55,12 @@ class PertumbuhanViewModel @Inject constructor(
     val isLoadingChildren = MutableStateFlow(true)
     val isEmptyChildren = MutableStateFlow(false)
 
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _syncError = MutableStateFlow<String?>(null)
+    val syncError: StateFlow<String?> = _syncError.asStateFlow()
+
     private val _addAnakStatus = MutableStateFlow<AddAnakStatus>(AddAnakStatus.Idle)
     val addAnakStatus: StateFlow<AddAnakStatus> = _addAnakStatus.asStateFlow()
 
@@ -79,6 +85,24 @@ class PertumbuhanViewModel @Inject constructor(
                 isEmptyChildren.value = true
             } finally {
                 isLoadingChildren.value = false
+            }
+        }
+    }
+
+    fun syncPertumbuhan(userId: Int) {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            _syncError.value = null
+            try {
+                repository.syncPertumbuhanByUserId(userId)
+                // Setelah sinkronisasi, muat ulang data anak
+                loadChildren(userId)
+                Log.d("PertumbuhanViewModel", "Sinkronisasi berhasil untuk userId: $userId")
+            } catch (e: Exception) {
+                Log.e("PertumbuhanViewModel", "Gagal sinkronisasi: ${e.message}", e)
+                _syncError.value = "Gagal menyinkronkan data: ${e.message}"
+            } finally {
+                _isSyncing.value = false
             }
         }
     }
