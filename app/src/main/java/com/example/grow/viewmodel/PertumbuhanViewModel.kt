@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.Period
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -80,9 +81,10 @@ class PertumbuhanViewModel @Inject constructor(
                 _selectedChildIndex.value = 0
                 calculateChildAges(result)
             } catch (e: Exception) {
-                Log.e("ViewModel", "Error loading children: ${e.message}")
+                Log.e("ViewModel", "Error loading children: ${e.message}", e)
                 _children.value = emptyList()
                 isEmptyChildren.value = true
+                _errorMessage.value = "Gagal memuat data anak: ${e.message}"
             } finally {
                 isLoadingChildren.value = false
             }
@@ -95,7 +97,6 @@ class PertumbuhanViewModel @Inject constructor(
             _syncError.value = null
             try {
                 repository.syncPertumbuhanByUserId(userId)
-                // Setelah sinkronisasi, muat ulang data anak
                 loadChildren(userId)
                 Log.d("PertumbuhanViewModel", "Sinkronisasi berhasil untuk userId: $userId")
             } catch (e: Exception) {
@@ -145,15 +146,24 @@ class PertumbuhanViewModel @Inject constructor(
     }
 
     private fun hitungUmur(tanggalLahir: String): String {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        val birthDate = LocalDate.parse(tanggalLahir, formatter)
+        val isoFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
+        val simpleFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val birthDate = try {
+            // Try parsing ISO 8601 format first (e.g., 2025-06-15T00:00:00.000000Z)
+            LocalDate.parse(tanggalLahir, isoFormatter)
+        } catch (e: DateTimeParseException) {
+            try {
+                // Fallback to simple yyyy-MM-dd format
+                LocalDate.parse(tanggalLahir, simpleFormatter)
+            } catch (e2: DateTimeParseException) {
+                Log.e("ViewModel", "Invalid date format for tanggalLahir: $tanggalLahir", e2)
+                return "Umur tidak valid"
+            }
+        }
         val currentDate = LocalDate.now()
-
         val period = Period.between(birthDate, currentDate)
-
         val tahun = period.years
         val bulan = period.months
-
         return "$tahun Tahun $bulan Bulan"
     }
 

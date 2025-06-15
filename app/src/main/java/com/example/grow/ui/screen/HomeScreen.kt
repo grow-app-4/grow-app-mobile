@@ -64,10 +64,7 @@ fun HomeScreen(
 
     LaunchedEffect(userId) {
         viewModel.loadChildren(userId)
-        viewModel.syncPertumbuhan(userId)
     }
-
-
 
     LaunchedEffect(selectedChild?.idAnak) {
         selectedChild?.idAnak?.let { idAnak ->
@@ -86,14 +83,6 @@ fun HomeScreen(
             } else {
                 Log.w("HOME_SCREEN", "Anak baru dengan idAnak: $newAnakId belum ada di daftar children: $children")
             }
-        }
-    }
-
-    syncError?.let { error ->
-        LaunchedEffect(error) {
-            // Tampilkan Toast atau Snackbar untuk error
-            // Contoh: SnackbarHostState().showSnackbar(error)
-            Log.e("HOME_SCREEN", "Sync error: $error")
         }
     }
 
