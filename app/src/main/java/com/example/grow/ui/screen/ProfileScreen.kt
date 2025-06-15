@@ -102,7 +102,11 @@ fun ProfileScreen(
             ProfileSection(
                 title = "Profil",
                 items = listOf(
-                    ProfileItem("Kehamilan") { /* Navigate to pregnancy info */ },
+                    ProfileItem("Kehamilan") {
+                        if (userId > 0) {
+                            navController.navigate(Screen.CatatanKehamilan.createRoute(userId))
+                        }
+                    },
                     ProfileItem("Data Anak") {
                         if (userId > 0) {
                             navController.navigate(Screen.ListDataAnak.createRoute(userId))
