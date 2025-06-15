@@ -21,3 +21,7 @@ data class ApiResponse<T>(
     val status: String,
     val data: T
 )
+
+data class StatusUpdateRequest(
+    val status: String
+)
