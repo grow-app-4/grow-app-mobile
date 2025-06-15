@@ -83,6 +83,7 @@ fun CatatanKehamilanScreen(
                 LocalDate.parse(data.tanggal_mulai),
                 LocalDate.now()
             )
+            Text("Status Kandungan: ${data.status}")
             Text("Usia Kehamilan: $usiaKehamilan minggu")
             Text("Tanggal Awal Kehamilan: ${data.tanggal_mulai}")
             Text("Berat Awal: ${data.berat_awal} kg")

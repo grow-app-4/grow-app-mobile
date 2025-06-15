@@ -48,25 +48,6 @@ class CatatanKehamilanViewModel @Inject constructor(
             }
         }
     }
-
-    suspend fun updateCatatan(id: Int, berat: Float, tanggal: String) {
-        try {
-            // panggil API update
-            api.updateCatatan(id, berat, tanggal)
-            fetchCatatanByKehamilanId(currentKehamilanId) // refresh data
-        } catch (e: Exception) {
-            Log.e("CatatanVM", "Update gagal: ${e.message}")
-        }
-    }
-
-    suspend fun hapusCatatan(id: Int) {
-        try {
-            api.deleteCatatan(id)
-            fetchCatatanByKehamilanId(currentKehamilanId)
-        } catch (e: Exception) {
-            Log.e("CatatanVM", "Hapus gagal: ${e.message}")
-        }
-    }
 }
 
 
