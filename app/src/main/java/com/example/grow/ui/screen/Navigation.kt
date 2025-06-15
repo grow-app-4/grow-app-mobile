@@ -146,7 +146,7 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
             arguments = listOf(navArgument("userId") { type = NavType.IntType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getInt("userId") ?: 0
-            CatatanKehamilanScreen(userId = userId)
+            CatatanKehamilanScreen(navController = navController, userId = userId)
         }
         //aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         composable(
