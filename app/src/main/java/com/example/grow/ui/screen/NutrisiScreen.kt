@@ -276,7 +276,7 @@ fun NutrisiScreen(
 
                                 Column {
                                     Text(
-                                        text = namaPengguna ?: "Memuat...",
+                                        text = "Ibu ${namaPengguna ?: "Memuat..."}",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = BiruText

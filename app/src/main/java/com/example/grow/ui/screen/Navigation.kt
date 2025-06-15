@@ -35,6 +35,9 @@ sealed class Screen(val route: String) {
     object TambahKehamilan : Screen("tambah_kehamilan/{userId}") {
         fun createRoute(userId: Int) = "tambah_kehamilan/$userId"
     }
+    object CatatanKehamilan : Screen("catatan_kehamilan/{userId}") {
+        fun createRoute(userId: Int) = "catatan_kehamilan/$userId"
+    }
     object TambahAsupan : Screen("asupan_screen/{idUser}/{tanggalKonsumsi}") {
         fun createRoute(idUser: Int, tanggalKonsumsi: String) =
             "asupan_screen/$idUser/$tanggalKonsumsi"
@@ -137,6 +140,15 @@ fun AppNavHost(navController: NavHostController, viewModel: AuthViewModel = hilt
                 navController = navController
             )
         }
+        //aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        composable(
+            route = "catatan_kehamilan/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getInt("userId") ?: 0
+            CatatanKehamilanScreen(userId = userId)
+        }
+        //aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         composable(
             route = Screen.InputDataPertumbuhan.route,
             arguments = listOf(navArgument("idAnak") { type = NavType.IntType })

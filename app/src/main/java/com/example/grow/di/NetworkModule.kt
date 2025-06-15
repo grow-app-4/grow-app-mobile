@@ -6,6 +6,7 @@ import com.example.grow.data.api.PertumbuhanApiService
 import com.example.grow.data.remote.AnakApiService
 import com.example.grow.data.remote.AuthApiService
 import com.example.grow.data.remote.AsupanApiService
+import com.example.grow.data.remote.CatatanKehamilanApiService
 import com.example.grow.data.remote.KehamilanApiService
 import com.example.grow.data.remote.MakananApiService
 import com.example.grow.data.remote.UserApiService
@@ -74,6 +75,12 @@ object NetworkModule {
     @Singleton
     fun provideKehamilanApiService(retrofit: Retrofit): KehamilanApiService {
         return retrofit.create(KehamilanApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCatatanKehamilanApiService(retrofit: Retrofit): CatatanKehamilanApiService {
+        return retrofit.create(CatatanKehamilanApiService::class.java)
     }
 
     @Provides
