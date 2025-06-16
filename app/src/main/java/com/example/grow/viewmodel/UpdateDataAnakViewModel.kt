@@ -44,8 +44,8 @@ class UpdateDataAnakViewModel @Inject constructor(
                     if (anak != null) {
                         val profileImageUri = anak.profileImageUri?.let {
                             try {
-                                // Bersihkan duplikasi storage
-                                val cleanPath = it.replace("storage/storage/", "storage/")
+                                // Bersihkan semua duplikasi /storage/
+                                val cleanPath = cleanStoragePath(it)
                                 if (cleanPath.startsWith("http")) Uri.parse(cleanPath)
                                 else Uri.parse("${Constants.BASE_IMAGE_URL}$cleanPath")
                             } catch (e: Exception) {
@@ -131,15 +131,15 @@ class UpdateDataAnakViewModel @Inject constructor(
                     namaAnak = state.name,
                     jenisKelamin = state.gender ?: originalChild.jenisKelamin,
                     tanggalLahir = formatTanggalLahir(state.birthDate),
-                    profileImageUri = state.profileImageUri?.toString()
+                    profileImageUri = state.profileImageUri?.toString()?.let { cleanStoragePath(it) }
                 )
 
                 Log.d("UpdateChild", "Mengirim data ke repository: $anak")
                 val updatedChild = anakRepository.updateAnak2(anak, state.profileImageUri, context)
                 val updatedProfileImageUri = updatedChild.profileImageUri?.let {
                     try {
-                        // Bersihkan duplikasi storage
-                        val cleanPath = it.replace("storage/storage/", "storage/")
+                        // Bersihkan semua duplikasi /storage/
+                        val cleanPath = cleanStoragePath(it)
                         if (cleanPath.startsWith("http")) Uri.parse(cleanPath)
                         else Uri.parse("${Constants.BASE_IMAGE_URL}$cleanPath")
                     } catch (e: Exception) {
@@ -165,14 +165,26 @@ class UpdateDataAnakViewModel @Inject constructor(
         }
     }
 
+    private fun cleanStoragePath(path: String): String {
+        var cleanedPath = path
+        // Terus bersihkan /storage//storage/ hingga tidak ada duplikasi
+        while (cleanedPath.contains("/storage//storage/")) {
+            cleanedPath = cleanedPath.replace("/storage//storage/", "/storage/")
+        }
+        // Bersihkan /storage/ berulang menjadi satu /storage/
+        while (cleanedPath.contains("//storage/")) {
+            cleanedPath = cleanedPath.replace("//storage/", "/storage/")
+        }
+        return cleanedPath
+    }
+
     private fun validateInputs(state: UiState): Boolean {
         if (state.name.isBlank()) {
             Log.d("UpdateChild", "Validasi gagal: Nama anak kosong")
             return false
         }
         if (state.name.length < 2) {
-            Log.d("UpdateChild", "Validasi gagal: Nama anak terlalu pendek")
-            return false
+            Log.d("UpdateChild", "Validasi gagal: Nama anak terlalu pendPredictor: false")
         }
 
         if (state.birthDate.isBlank() || !isValidDateFormat(state.birthDate)) {

@@ -212,7 +212,7 @@ fun VerifyEmailScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
 
                     // Verification code input fields
                     Row(
@@ -236,7 +236,7 @@ fun VerifyEmailScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(28.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Verification button
                     Button(

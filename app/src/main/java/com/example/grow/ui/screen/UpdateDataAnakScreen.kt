@@ -237,7 +237,7 @@ fun UpdateDataAnakScreen(
                                 context,
                                 { _, year, month, dayOfMonth ->
                                     viewModel.updateBirthDate(
-                                        String.format("%02d/%02d/%d", dayOfMonth, month + 1, year)
+                                        String.format("%d-%02d-%02d", year, month + 1, dayOfMonth)
                                     )
                                 },
                                 calendar.get(Calendar.YEAR),
@@ -249,7 +249,7 @@ fun UpdateDataAnakScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = if (uiState.birthDate.isNotEmpty()) uiState.birthDate else "DD/MM/YYYY",
+                        text = if (uiState.birthDate.isNotEmpty()) uiState.birthDate else "YYYY-MM-DD",
                         style = TextStyle(
                             fontFamily = PoppinsFamily,
                             fontSize = 14.sp,

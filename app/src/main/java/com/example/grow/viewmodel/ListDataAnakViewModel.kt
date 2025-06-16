@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.Period
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -49,7 +48,6 @@ class ListDataAnakViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Ambil userId dari SessionManager
                 val userId = SessionManager.getUserId(context)
                 // Sinkronkan data dari API
                 anakRepository.fetchAllAnakFromApi(context)
@@ -63,8 +61,10 @@ class ListDataAnakViewModel @Inject constructor(
                     // Ambil status stunting dan tanggal pencatatan terbaru
                     val stuntingStatus = pertumbuhanRepository.getLatestStatusStunting(anak.idAnak) ?: "Tidak Tersedia"
                     val date = pertumbuhanRepository.getTanggalPencatatanTerbaru(anak.idAnak) ?: anak.tanggalLahir
-                    // Tentukan status gizi (bisa disesuaikan dengan logika aplikasi)
+                    // Tentukan status gizi
                     val nutritionStatus = determineNutritionStatus(anak.idAnak)
+                    // Bersihkan semua duplikasi /storage/ pada profileImageUri
+                    val cleanedProfileImgUri = anak.profileImageUri?.let { cleanStoragePath(it) }
 
                     ChildData(
                         anak = anak,
@@ -72,7 +72,7 @@ class ListDataAnakViewModel @Inject constructor(
                         nutritionStatus = nutritionStatus,
                         stuntingStatus = stuntingStatus,
                         date = date,
-                        profileImgUri = anak.profileImageUri
+                        profileImgUri = cleanedProfileImgUri
                     )
                 }
                 _childrenData.value = childrenDataList
@@ -117,13 +117,18 @@ class ListDataAnakViewModel @Inject constructor(
     private suspend fun determineNutritionStatus(idAnak: Int): String {
         val idPertumbuhan = pertumbuhanRepository.getIdPertumbuhanTerbaru(idAnak)
             ?: return "Tidak Tersedia"
-
         val status = pertumbuhanRepository.prosesAnalisisGizi(idPertumbuhan)
         return status ?: "Tidak Diketahui"
     }
 
-    fun onEditChildData(childId: Int) {
-        // Logika untuk navigasi ke halaman update
-        // Biasanya ditangani di UI dengan NavController
+    private fun cleanStoragePath(path: String): String {
+        var cleanedPath = path
+        while (cleanedPath.contains("/storage//storage/")) {
+            cleanedPath = cleanedPath.replace("/storage//storage/", "/storage/")
+        }
+        while (cleanedPath.contains("//storage/")) {
+            cleanedPath = cleanedPath.replace("//storage/", "/storage/")
+        }
+        return cleanedPath
     }
 }

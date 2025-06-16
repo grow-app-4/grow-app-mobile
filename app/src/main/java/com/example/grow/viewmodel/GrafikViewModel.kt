@@ -30,6 +30,9 @@ class GrafikViewModel @Inject constructor(
     private val _grafikWHO = MutableStateFlow<Map<Float, List<Pair<Int, Float>>>>(emptyMap())
     val grafikWHO: StateFlow<Map<Float, List<Pair<Int, Float>>>> = _grafikWHO
 
+    private val _isSynced = MutableStateFlow(false)
+    val isSynced: StateFlow<Boolean> = _isSynced
+
     fun loadGrafik(
         anak: AnakEntity,
         idJenis: Int,
@@ -123,8 +126,23 @@ class GrafikViewModel @Inject constructor(
     }
 
     fun syncStandarPertumbuhan() {
-        viewModelScope.launch {
-            repository.syncStandarPertumbuhan()
+        if (_isSynced.value) {
+            Log.d("GrafikViewModel", "Sync sudah dilakukan, skip")
+            return
         }
+
+        viewModelScope.launch {
+            try {
+                repository.syncStandarPertumbuhan()
+                _isSynced.value = true
+                Log.d("GrafikViewModel", "Sync sukses")
+            } catch (e: Exception) {
+                Log.e("GrafikViewModel", "Sync gagal: ${e.message}")
+            }
+        }
+    }
+
+    fun resetSync() {
+        _isSynced.value = false
     }
 }

@@ -15,6 +15,7 @@ import com.example.grow.util.SessionManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -32,7 +33,26 @@ class AnakRepository @Inject constructor(
     private val detailPertumbuhanDao: DetailPertumbuhanDao
 ) {
 
-    fun getAllAnak(): Flow<List<AnakEntity>> = anakDao.getAllAnak()
+    private fun cleanStoragePath(path: String?): String? {
+        if (path == null) return null
+        var cleanedPath = path
+        // Terus bersihkan /storage//storage/ hingga tidak ada duplikasi
+        while (cleanedPath?.contains("/storage//storage/") == true) {
+            cleanedPath = cleanedPath.replace("/storage//storage/", "/storage/")
+        }
+        // Bersihkan /storage/ berulang menjadi satu /storage/
+        while (cleanedPath?.contains("//storage/") == true) {
+            cleanedPath = cleanedPath.replace("//storage/", "/storage/")
+        }
+        return cleanedPath
+    }
+
+    fun getAllAnak(): Flow<List<AnakEntity>> = anakDao.getAllAnak().map { anakList ->
+        // Bersihkan profileImageUri saat data diambil dari database
+        anakList.map { anak ->
+            anak.copy(profileImageUri = cleanStoragePath(anak.profileImageUri))
+        }
+    }
 
     suspend fun fetchAllAnakFromApi(context: Context) {
         val response = anakApiService.getAllAnak()
@@ -47,7 +67,7 @@ class AnakRepository @Inject constructor(
                         namaAnak = anak.namaAnak,
                         jenisKelamin = anak.jenisKelamin,
                         tanggalLahir = anak.tanggalLahir.toString(),
-                        profileImageUri = anak.profileImageUri?.replace("storage/storage/", "storage/")
+                        profileImageUri = cleanStoragePath(anak.profileImageUri)
                     )
                 }
                 anakDao.insertAllAnak(entities)
@@ -64,30 +84,33 @@ class AnakRepository @Inject constructor(
             require(anak.jenisKelamin in listOf("L", "P")) { "Jenis kelamin tidak valid" }
             require(anak.tanggalLahir.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) { "Format tanggal lahir tidak valid" }
 
+            // Bersihkan profileImageUri sebelum diproses
+            val cleanedAnak = anak.copy(profileImageUri = cleanStoragePath(anak.profileImageUri))
             val anakRequest = AnakRequest(
-                idUser = anak.idUser,
-                namaAnak = anak.namaAnak,
-                jenisKelamin = anak.jenisKelamin,
-                tanggalLahir = anak.tanggalLahir
+                idUser = cleanedAnak.idUser,
+                namaAnak = cleanedAnak.namaAnak,
+                jenisKelamin = cleanedAnak.jenisKelamin,
+                tanggalLahir = cleanedAnak.tanggalLahir
             )
             val response = anakApiService.createAnak(anakRequest)
 
             if (response.isSuccessful) {
                 val idAnakFromApi = response.body()?.data?.idAnak
                 if (idAnakFromApi != null) {
-                    val anakWithApiId = anak.copy(idAnak = idAnakFromApi)
+                    val anakWithApiId = cleanedAnak.copy(idAnak = idAnakFromApi)
                     anakDao.insertAnak(anakWithApiId)
                     Log.d(TAG, "Anak disimpan ke API dan lokal dengan ID: $idAnakFromApi")
                     return idAnakFromApi
                 }
             }
 
-            val idAnakLocal = anakDao.insertAnak(anak).toInt()
+            val idAnakLocal = anakDao.insertAnak(cleanedAnak).toInt()
             Log.w(TAG, "Gagal simpan ke API, disimpan lokal dengan ID: $idAnakLocal")
             return idAnakLocal
         } catch (e: Exception) {
             Log.e(TAG, "Error menambahkan anak: ${e.message}", e)
-            val idAnakLocal = anakDao.insertAnak(anak).toInt()
+            val cleanedAnak = anak.copy(profileImageUri = cleanStoragePath(anak.profileImageUri))
+            val idAnakLocal = anakDao.insertAnak(cleanedAnak).toInt()
             Log.d(TAG, "Disimpan lokal dengan ID: $idAnakLocal (offline)")
             return idAnakLocal
         }
@@ -99,8 +122,10 @@ class AnakRepository @Inject constructor(
         tinggiLahir: Float,
         lingkarKepalaLahir: Float
     ) {
-        val idAnakLocal = anakDao.insertAnak(anak).toInt()
-        insertInitialGrowth(idAnakLocal, anak.tanggalLahir, beratLahir, tinggiLahir, lingkarKepalaLahir)
+        // Bersihkan profileImageUri sebelum disimpan
+        val cleanedAnak = anak.copy(profileImageUri = cleanStoragePath(anak.profileImageUri))
+        val idAnakLocal = anakDao.insertAnak(cleanedAnak).toInt()
+        insertInitialGrowth(idAnakLocal, cleanedAnak.tanggalLahir, beratLahir, tinggiLahir, lingkarKepalaLahir)
         Log.d("AddAnakLog", "Anak disimpan ke lokal dengan ID: $idAnakLocal (offline mode)")
     }
 
@@ -130,29 +155,36 @@ class AnakRepository @Inject constructor(
         Log.d("AddAnakLog", "Pertumbuhan awal disimpan untuk anak ID: $idAnak")
     }
 
-    fun getAnakById(id: Int): Flow<AnakEntity?> = anakDao.getAnakById(id)
+    fun getAnakById(id: Int): Flow<AnakEntity?> = anakDao.getAnakById(id).map { anak ->
+        // Bersihkan profileImageUri saat data diambil
+        anak?.copy(profileImageUri = cleanStoragePath(anak.profileImageUri))
+    }
 
     suspend fun addAnak(anak: AnakEntity) {
-        anakDao.insertAnak(anak)
+        // Bersihkan profileImageUri sebelum disimpan
+        val cleanedAnak = anak.copy(profileImageUri = cleanStoragePath(anak.profileImageUri))
+        anakDao.insertAnak(cleanedAnak)
         anakApiService.createAnak(
             hashMapOf(
-                "id_user" to anak.idUser,
-                "nama_anak" to anak.namaAnak,
-                "jenis_kelamin" to anak.jenisKelamin,
-                "tanggal_lahir" to anak.tanggalLahir
+                "id_user" to cleanedAnak.idUser,
+                "nama_anak" to cleanedAnak.namaAnak,
+                "jenis_kelamin" to cleanedAnak.jenisKelamin,
+                "tanggal_lahir" to cleanedAnak.tanggalLahir
             )
         )
     }
 
     suspend fun updateAnak(anak: AnakEntity) {
-        anakDao.updateAnak(anak)
+        // Bersihkan profileImageUri sebelum disimpan
+        val cleanedAnak = anak.copy(profileImageUri = cleanStoragePath(anak.profileImageUri))
+        anakDao.updateAnak(cleanedAnak)
         anakApiService.updateAnak(
-            anak.idAnak,
+            cleanedAnak.idAnak,
             hashMapOf(
-                "id_user" to anak.idUser,
-                "nama_anak" to anak.namaAnak,
-                "jenis_kelamin" to anak.jenisKelamin,
-                "tanggal_lahir" to anak.tanggalLahir
+                "id_user" to cleanedAnak.idUser,
+                "nama_anak" to cleanedAnak.namaAnak,
+                "jenis_kelamin" to cleanedAnak.jenisKelamin,
+                "tanggal_lahir" to cleanedAnak.tanggalLahir
             )
         )
     }
@@ -172,24 +204,36 @@ class AnakRepository @Inject constructor(
                 val idUserBody = anak.idUser.toString().toRequestBody(mediaTypeText)
                 val namaAnakBody = anak.namaAnak.trim().toRequestBody(mediaTypeText)
                 val jenisKelaminBody = anak.jenisKelamin.toRequestBody(mediaTypeText)
-                val tanggalLahirBody = formattedDate.toRequestBody()
+                val tanggalLahirBody = formattedDate.toRequestBody(mediaTypeText)
 
-                var profileImagePath: String? = anak.profileImageUri
+                // Bersihkan profileImageUri dari input
+                var profileImagePath: String? = cleanStoragePath(anak.profileImageUri)
                 val profilePhotoPart: MultipartBody.Part? = profileImageUri?.let { uri ->
-                    val file = File(context.filesDir, "profile_image_${System.currentTimeMillis()}.jpg")
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        file.outputStream().use { output -> input.copyTo(output) }
-                    } ?: throw IllegalStateException("Gagal membaca file foto profil")
+                    when {
+                        // URL remote (http/https): Gunakan URL yang sudah dibersihkan
+                        uri.scheme == "http" || uri.scheme == "https" -> {
+                            profileImagePath = cleanStoragePath(uri.toString())
+                            null // Tidak membuat bagian multipart
+                        }
+                        // URI lokal: Unggah gambar
+                        else -> {
+                            val file = File(context.filesDir, "profile_image_${System.currentTimeMillis()}.jpg")
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                file.outputStream().use { output -> input.copyTo(output) }
+                            } ?: throw IllegalStateException("Gagal membaca file foto profil")
 
-                    if (!file.exists() || file.length() == 0L) {
-                        throw IllegalStateException("File foto profil tidak valid atau kosong")
+                            if (!file.exists() || file.length() == 0L) {
+                                throw IllegalStateException("File foto profil tidak valid atau kosong")
+                            }
+
+                            profileImagePath = file.absolutePath
+                            val requestFile = file.asRequestBody("image/*".toMediaType())
+                            MultipartBody.Part.createFormData("profile_photo", file.name, requestFile)
+                        }
                     }
-
-                    profileImagePath = file.absolutePath
-                    val requestFile = file.asRequestBody("image/*".toMediaType())
-                    MultipartBody.Part.createFormData("profile_photo", file.name, requestFile)
                 }
 
+                // Simpan ke database lokal dengan URL yang sudah dibersihkan
                 anakDao.updateAnak(
                     anak.copy(
                         tanggalLahir = formattedDate,
@@ -197,6 +241,7 @@ class AnakRepository @Inject constructor(
                     )
                 )
 
+                // Panggil API
                 val response = anakApiService.updateAnak3(
                     id = anak.idAnak,
                     method = methodBody,
@@ -209,7 +254,8 @@ class AnakRepository @Inject constructor(
 
                 if (response.isSuccessful) {
                     response.body()?.data?.let { anakResponse ->
-                        val updatedProfileImageUri = anakResponse.profileImageUri?.replace("/storage//storage/", "/storage/")
+                        // Bersihkan profileImageUri dari respons server
+                        val updatedProfileImageUri = cleanStoragePath(anakResponse.profileImageUri)
                         val updatedAnak = anak.copy(
                             tanggalLahir = anakResponse.tanggalLahir,
                             profileImageUri = updatedProfileImageUri ?: profileImagePath
@@ -224,7 +270,7 @@ class AnakRepository @Inject constructor(
                     throw Exception("Gagal memperbarui data anak: $errorBody")
                 }
             } catch (e: Exception) {
-                Log.e("AnakRepository", "Failed to update anak: ${e.message}", e)
+                Log.e("AnakRepository", "Gagal memperbarui anak: ${e.message}", e)
                 throw e
             }
         }

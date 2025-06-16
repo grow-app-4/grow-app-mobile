@@ -431,11 +431,6 @@ class PertumbuhanViewModel @Inject constructor(
         }
     }
 
-    fun updateProfileImageUri(anakId: Int, uri: Uri?) {
-        // Implementasi sementara untuk menyimpan URI di ViewModel atau langsung ke repository
-        // Anda mungkin ingin menyimpan ini ke state sementara atau langsung ke database
-    }
-
     fun deletePertumbuhan(idPertumbuhan: Int, idAnak: Int) {
         viewModelScope.launch {
             repository.deletePertumbuhan(idPertumbuhan)

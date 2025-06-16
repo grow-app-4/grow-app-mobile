@@ -33,22 +33,22 @@ class UserRepository @Inject constructor(
             try {
                 // Update local database first
                 userDao.updateUser(user)
+                Log.d("UPDATE_USER", "Local update: name=${user.name}, email=${user.email}, profileImageUri=${user.profileImageUri}")
 
                 val bearerToken = "Bearer $token"
                 var lastException: Exception? = null
                 repeat(3) { attempt ->
                     try {
-                        val response = if (profileImageUri != null) {
-                            // Handle photo upload
+                        val response = if (profileImageUri != null && !profileImageUri.toString().startsWith("http")) {
+                            // Handle new local file upload
+                            Log.d("UPDATE_USER", "Processing local file: $profileImageUri")
                             val file = File(context.cacheDir, "profile_image_${System.currentTimeMillis()}.jpg")
                             context.contentResolver.openInputStream(profileImageUri)?.use { input ->
                                 file.outputStream().use { output -> input.copyTo(output) }
                             }
-                            Log.d("PROFILE_UPLOAD", "File exists: ${file.exists()}, Size: ${file.length()} bytes")
                             val requestBody = file.asRequestBody("image/jpeg".toMediaType())
                             val profilePhotoPart = MultipartBody.Part.createFormData("profile_photo", file.name, requestBody)
-                            Log.d("PROFILE_UPLOAD", "Using updateUserWithPhoto()")
-                            Log.d("PROFILE_UPLOAD", "Sending file as: profile_photo = ${file.name}")
+                            Log.d("UPDATE_USER", "Sending POST with photo: name=${user.name}, email=${user.email}")
                             userApiService.updateUserWithPhoto(
                                 bearerToken,
                                 user.id,
@@ -57,35 +57,40 @@ class UserRepository @Inject constructor(
                                 profilePhoto = profilePhotoPart
                             )
                         } else {
-                            // Handle update without photo
+                            // Only send changed fields (exclude profile_photo unless explicitly changed)
+                            Log.d("UPDATE_USER", "Sending POST without photo: name=${user.name}, email=${user.email}")
                             userApiService.updateUser(
                                 bearerToken,
                                 user.id,
                                 UserUpdateRequest(
                                     name = user.name,
                                     email = user.email,
-                                    profile_photo = user.profileImageUri
+                                    profile_photo = null // Don’t send existing profile_photo URL
                                 )
                             )
                         }
 
-                        // Logging
-                        Log.d("API_RESPONSE", "Code: ${response.code()}, Success: ${response.isSuccessful}")
+                        Log.d("UPDATE_USER", "Response: code=${response.code()}, success=${response.isSuccessful}")
                         if (!response.isSuccessful) {
-                            val error = response.errorBody()?.string()
-                            Log.e("API_ERROR_BODY", error ?: "No error body")
+                            val errorBody = response.errorBody()?.string()
+                            Log.e("UPDATE_USER", "Error body: $errorBody")
+                        } else {
+                            Log.d("UPDATE_USER", "Response body: ${response.body()?.data}")
                         }
 
                         if (response.isSuccessful && response.body()?.data != null) {
                             response.body()?.data?.let {
+                                // Preserve existing profileImageUri if not updated
+                                val updatedProfileUri = if (it.profile_photo != null) it.profile_photo else user.profileImageUri
                                 userDao.updateUser(
                                     UserEntity(
                                         id = it.id,
                                         name = it.name,
                                         email = it.email,
-                                        profileImageUri = it.profile_photo
+                                        profileImageUri = updatedProfileUri
                                     )
                                 )
+                                Log.d("UPDATE_USER", "API update saved: name=${it.name}, email=${it.email}, profileImageUri=$updatedProfileUri")
                             }
                             return@repeat
                         } else {
@@ -93,6 +98,7 @@ class UserRepository @Inject constructor(
                         }
                     } catch (e: Exception) {
                         lastException = e
+                        Log.e("UPDATE_USER", "Attempt ${attempt + 1} failed: ${e.message}")
                         if (e is IOException && attempt < 2) {
                             delay(1000)
                         } else {
@@ -102,8 +108,8 @@ class UserRepository @Inject constructor(
                 }
                 lastException?.let { throw it }
             } catch (e: Exception) {
-                // Fallback to local update
-                userDao.updateUser(user.copy(profileImageUri = profileImageUri?.toString()))
+                Log.e("UPDATE_USER", "Fallback local update: name=${user.name}, email=${user.email}, error=${e.message}")
+                userDao.updateUser(user.copy(profileImageUri = profileImageUri?.toString() ?: user.profileImageUri))
                 throw e
             }
         }

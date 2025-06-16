@@ -15,14 +15,27 @@ class AnakViewModel @Inject constructor(
     private val anakRepository: AnakRepository
 ) : ViewModel() {
 
+    private var isSynced = false
+
     fun fetchAllAnakFromApi(context: Context) {
+        if (isSynced) {
+            Log.d("AnakViewModel", "Anak data sudah disync, skip fetch")
+            return
+        }
+
         viewModelScope.launch {
             try {
                 anakRepository.fetchAllAnakFromApi(context)
+                isSynced = true
+                Log.d("AnakViewModel", "Anak data sync sukses")
             } catch (e: Exception) {
                 Log.e("AnakViewModel", "Error fetching anak data: ${e.message}")
             }
         }
+    }
+
+    fun resetSync() {
+        isSynced = false
     }
 
     // Fungsi untuk mengambil anak dari Room berdasarkan ID
