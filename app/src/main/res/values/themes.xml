@@ -2,4 +2,17 @@
 <resources>
 
     <style name="Theme.GROW" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Grow.Starting" parent="Theme.SplashScreen">
+        <!-- Set the splash screen background -->
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+
+        <!-- Set the splash screen icon (optional) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>
+
+        <!-- Set the icon size (optional) -->
+        <item name="windowSplashScreenAnimationDuration">500</item>
+
+        <!-- Set the theme of the Activity that directly follows splash screen -->
+        <item name="postSplashScreenTheme">@style/Theme.GROW</item>
+    </style>
 </resources>
